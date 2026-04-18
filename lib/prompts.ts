@@ -3,16 +3,16 @@ import { hashString } from "./rng";
 import { todayKey } from "./date";
 
 export const PROMPTS: Prompt[] = [
-  { id: "frat-gdi", xLeft: "frat star", xRight: "GDI", yBottom: "pledge energy", yTop: "senior composure" },
-  { id: "lightweight-legend", xLeft: "lightweight", xRight: "seasoned drinker", yBottom: "first to puke", yTop: "last one standing" },
-  { id: "hookup-situationship", xLeft: "hookup", xRight: "situationship", yBottom: "ghoster", yTop: "texts back" },
-  { id: "rager-kickback", xLeft: "rager", xRight: "kickback", yBottom: "dance floor", yTop: "smoke circle" },
-  { id: "gym-grub", xLeft: "gym rat", xRight: "couch gremlin", yBottom: "protein shake", yTop: "late-night pizza" },
-  { id: "wing-lone", xLeft: "wingman", xRight: "lone wolf", yBottom: "strikes out", yTop: "closes the deal" },
-  { id: "simp-player", xLeft: "simp", xRight: "player", yBottom: "texts first", yTop: "waits 3 days" },
-  { id: "beer-shots", xLeft: "beer pong champ", xRight: "shot taker", yBottom: "sipper", yTop: "shotgunner" },
-  { id: "fomo-jomo", xLeft: "FOMO king", xRight: "JOMO monk", yBottom: "pregame MVP", yTop: "afterparty legend" },
-  { id: "clout-lowkey", xLeft: "clout chaser", xRight: "low-key", yBottom: "finsta poster", yTop: "main character" },
+  { id: "fader-puller", xLeft: "#1 cleans fader", xRight: "pulls up every time", yBottom: "'my fault' energy", yTop: "calls for buckets" },
+  { id: "bucket-tier", xLeft: "bucket-bound", xRight: "bucket-proof", yBottom: "takes the L", yTop: "deflects the blame" },
+  { id: "text-style", xLeft: "one-word 'boys'", xRight: "full essay text", yBottom: "all lowercase", yTop: "ALL CAPS" },
+  { id: "sheet-vibes", xLeft: "spreadsheet brain", xRight: "pure vibes", yBottom: "retired", yTop: "third-most hours" },
+  { id: "meniscus-jomo", xLeft: "running meniscus", xRight: "asleep by 10", yBottom: "FOMO king", yTop: "JOMO monk" },
+  { id: "talk-act", xLeft: "talks the most shit", xRight: "silent workhorse", yBottom: "still at practice", yTop: "always otw" },
+  { id: "rizz-check", xLeft: "no rizz (self-reported)", xRight: "locked in", yBottom: "texts first", yTop: "waits 3 days" },
+  { id: "main-quiet", xLeft: "main character", xRight: "quiet architect", yBottom: "ghoster", yTop: "texts back" },
+  { id: "yak-brick", xLeft: "yakking at 8:30am", xRight: "holds it down", yBottom: "bricked at foco", yTop: "godspeed boys" },
+  { id: "axa-leech", xLeft: "AXA energy", xRight: "Leech energy", yBottom: "Sanborn gremlin", yTop: "foco regular" },
 ];
 
 export function getTodaysPrompt(dateKey: string = todayKey()): Prompt {
