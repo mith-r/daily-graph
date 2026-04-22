@@ -15,7 +15,12 @@ export const PROMPTS: Prompt[] = [
   { id: "discretion", xLeft: "walk of shame", xRight: "walk of pride", yBottom: "never tells the boys", yTop: "live-texts mid-hookup" },
 ];
 
+const OVERRIDES: Record<string, Prompt> = {
+  "2026-04-22": { id: "lust-romance", xLeft: "lustful", xRight: "romantic", yBottom: "bad at sex", yTop: "good at sex" },
+};
+
 export function getTodaysPrompt(dateKey: string = todayKey()): Prompt {
+  if (OVERRIDES[dateKey]) return OVERRIDES[dateKey];
   const idx = hashString(dateKey) % PROMPTS.length;
   return PROMPTS[idx];
 }
