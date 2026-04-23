@@ -36,7 +36,7 @@ export function Dot({ x, y, label, userId, isMe }: Props) {
         className={`rounded-full ${isMe ? "w-4 h-4 ring-2 ring-white/80" : "w-3 h-3"}`}
         style={{ backgroundColor: color, boxShadow: `0 0 12px ${color}` }}
       />
-      <div className="mt-1 text-xs text-white/80 whitespace-nowrap">
+      <div className="mt-1 text-xs text-white/80 max-w-[5rem] truncate sm:max-w-none sm:whitespace-nowrap">
         {isMe ? `${label} (you)` : label}
       </div>
     </div>

@@ -26,7 +26,7 @@ export function AddFriendForm() {
         required
         autoComplete="off"
         placeholder="email or @username"
-        className="flex-1 min-w-[200px] rounded-md bg-white/5 border border-white/10 px-3 py-2 text-white placeholder-white/30 outline-none focus:border-white/40"
+        className="flex-1 min-w-0 rounded-md bg-white/5 border border-white/10 px-3 py-2 text-white placeholder-white/30 outline-none focus:border-white/40"
       />
       <button
         type="submit"

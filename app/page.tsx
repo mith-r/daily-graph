@@ -34,7 +34,7 @@ export default async function Home() {
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex flex-col">
       <Nav me={me} />
-      <div className="flex-1 w-full max-w-3xl mx-auto px-6 py-12">
+      <div className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-12">
         <HomeClient me={me} initial={initial} />
       </div>
     </main>

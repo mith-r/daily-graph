@@ -49,7 +49,7 @@ export default async function HistoryPage() {
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex flex-col">
       <Nav me={me} />
-      <div className="flex-1 w-full max-w-xl mx-auto px-6 py-12 space-y-10">
+      <div className="flex-1 w-full max-w-xl mx-auto px-4 sm:px-6 py-12 space-y-10">
         <section>
           <h1 className="text-2xl font-semibold">History</h1>
           <p className="mt-1 text-sm text-white/60">
