@@ -140,6 +140,11 @@ export async function getFriendIds(userId: string): Promise<Set<string>> {
   return new Set(ids);
 }
 
+export async function countIncomingRequests(userId: string): Promise<number> {
+  const redis = getRedis();
+  return redis.scard(incomingKey(userId));
+}
+
 async function loadSummaries(ids: string[]): Promise<FriendSummary[]> {
   if (ids.length === 0) return [];
   const redis = getRedis();
