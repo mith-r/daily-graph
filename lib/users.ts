@@ -12,6 +12,7 @@ const usernameKey = (username: string) =>
 const friendsKey = (id: string) => `user:${id}:friends`;
 const incomingKey = (id: string) => `user:${id}:incoming`;
 const outgoingKey = (id: string) => `user:${id}:outgoing`;
+const ALL_USERS_KEY = "users:all";
 
 function toPublic(u: User): PublicUser {
   return {
@@ -89,6 +90,7 @@ export async function createUser(input: {
     createdAt: Date.now(),
   };
   await redis.set(userKey(tempId), user);
+  await redis.sadd(ALL_USERS_KEY, tempId);
   return user;
 }
 
@@ -177,22 +179,35 @@ async function loadSummaries(ids: string[]): Promise<FriendSummary[]> {
 
 export async function listAllUsers(): Promise<FriendSummary[]> {
   const redis = getRedis();
+  let ids = await redis.smembers(ALL_USERS_KEY);
+  if (ids.length === 0) {
+    ids = await backfillAllUsers();
+  }
+  return loadSummaries(ids);
+}
+
+async function backfillAllUsers(): Promise<string[]> {
+  const redis = getRedis();
   const ids: string[] = [];
-  let cursor: string | number = "0";
+  let cursor = "0";
   do {
-    const [next, keys] = await redis.scan(cursor, {
+    const result = (await redis.scan(cursor, {
       match: "user:email:*",
       count: 500,
-    });
-    cursor = next;
+    })) as [string, string[]];
+    cursor = result[0];
+    const keys = result[1];
     if (keys.length > 0) {
       const values = await Promise.all(
         keys.map((k) => redis.get<string>(k))
       );
       for (const id of values) if (id) ids.push(id);
     }
-  } while (cursor !== "0" && cursor !== 0);
-  return loadSummaries(ids);
+  } while (cursor !== "0");
+  if (ids.length > 0) {
+    await redis.sadd(ALL_USERS_KEY, ids[0], ...ids.slice(1));
+  }
+  return ids;
 }
 
 export async function sendFriendRequestToUser(

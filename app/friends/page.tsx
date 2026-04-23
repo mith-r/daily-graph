@@ -47,14 +47,18 @@ export default async function FriendsPage() {
           <AddFriendForm />
         </section>
 
-        {discover.length > 0 && (
-          <section>
-            <h2 className="text-sm uppercase tracking-widest text-white/60">
-              Discover
-            </h2>
-            <p className="mt-1 text-xs text-white/50">
-              Everyone else on Daily Graph. Tap to send a request.
+        <section>
+          <h2 className="text-sm uppercase tracking-widest text-white/60">
+            Discover
+          </h2>
+          <p className="mt-1 text-xs text-white/50">
+            Everyone else on Daily Graph. Tap to send a request.
+          </p>
+          {discover.length === 0 ? (
+            <p className="mt-3 text-sm text-white/50">
+              No one else to add right now.
             </p>
+          ) : (
             <ul className="mt-3 space-y-2">
               {discover.map((u) => (
                 <li
@@ -69,8 +73,8 @@ export default async function FriendsPage() {
                 </li>
               ))}
             </ul>
-          </section>
-        )}
+          )}
+        </section>
 
         {incoming.length > 0 && (
           <section>
