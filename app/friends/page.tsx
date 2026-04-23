@@ -49,7 +49,7 @@ export default async function FriendsPage() {
                 >
                   <div>
                     <div className="text-sm">{u.displayName}</div>
-                    <div className="text-xs text-white/50">{u.email}</div>
+                    <div className="text-xs text-white/50">@{u.username}</div>
                   </div>
                   <FriendActions id={u.id} kind="incoming" />
                 </li>
@@ -71,7 +71,7 @@ export default async function FriendsPage() {
                 >
                   <div>
                     <div className="text-sm">{u.displayName}</div>
-                    <div className="text-xs text-white/50">{u.email}</div>
+                    <div className="text-xs text-white/50">@{u.username}</div>
                   </div>
                   <FriendActions id={u.id} kind="outgoing" />
                 </li>
@@ -95,7 +95,7 @@ export default async function FriendsPage() {
                 >
                   <div>
                     <div className="text-sm">{u.displayName}</div>
-                    <div className="text-xs text-white/50">{u.email}</div>
+                    <div className="text-xs text-white/50">@{u.username}</div>
                   </div>
                   <FriendActions id={u.id} kind="friend" />
                 </li>

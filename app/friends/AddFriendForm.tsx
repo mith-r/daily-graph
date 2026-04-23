@@ -19,13 +19,14 @@ export function AddFriendForm() {
   }, [state]);
 
   return (
-    <form ref={formRef} action={action} className="mt-3 flex gap-2">
+    <form ref={formRef} action={action} className="mt-3 flex flex-wrap gap-2">
       <input
-        name="email"
-        type="email"
+        name="identifier"
+        type="text"
         required
-        placeholder="friend@example.com"
-        className="flex-1 rounded-md bg-white/5 border border-white/10 px-3 py-2 text-white placeholder-white/30 outline-none focus:border-white/40"
+        autoComplete="off"
+        placeholder="email or @username"
+        className="flex-1 min-w-[200px] rounded-md bg-white/5 border border-white/10 px-3 py-2 text-white placeholder-white/30 outline-none focus:border-white/40"
       />
       <button
         type="submit"

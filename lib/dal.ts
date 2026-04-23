@@ -17,7 +17,12 @@ export const getCurrentUser = cache(async (): Promise<PublicUser | null> => {
   if (!session) return null;
   const user = await getUserById(session.userId);
   if (!user) return null;
-  return { id: user.id, email: user.email, displayName: user.displayName };
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    displayName: user.displayName,
+  };
 });
 
 export async function requireUser(): Promise<PublicUser> {

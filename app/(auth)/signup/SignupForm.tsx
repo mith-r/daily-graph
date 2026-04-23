@@ -14,11 +14,23 @@ export function SignupForm() {
       <FieldErrors errors={state?.errors?.email} />
 
       <Field
+        label="Username"
+        name="username"
+        type="text"
+        autoComplete="username"
+        maxLength={20}
+        placeholder="alice_03"
+        hint="3–20 chars. Letters, numbers, underscore. Start with a letter."
+      />
+      <FieldErrors errors={state?.errors?.username} />
+
+      <Field
         label="Display name"
         name="displayName"
         type="text"
         autoComplete="nickname"
         maxLength={24}
+        hint="Shown on the graph."
       />
       <FieldErrors errors={state?.errors?.displayName} />
 
@@ -47,8 +59,12 @@ export function SignupForm() {
 
 function Field({
   label,
+  hint,
   ...rest
-}: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
+}: React.InputHTMLAttributes<HTMLInputElement> & {
+  label: string;
+  hint?: string;
+}) {
   return (
     <label className="block">
       <span className="block text-xs uppercase tracking-widest text-white/60">
@@ -59,6 +75,7 @@ function Field({
         required
         className="mt-1 w-full rounded-md bg-white/5 border border-white/10 px-3 py-2 text-white placeholder-white/30 outline-none focus:border-white/40"
       />
+      {hint && <span className="mt-1 block text-xs text-white/40">{hint}</span>}
     </label>
   );
 }

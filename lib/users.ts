@@ -7,16 +7,28 @@ const BCRYPT_ROUNDS = 10;
 
 const userKey = (id: string) => `user:${id}`;
 const emailKey = (email: string) => `user:email:${email.toLowerCase()}`;
+const usernameKey = (username: string) =>
+  `user:username:${username.toLowerCase()}`;
 const friendsKey = (id: string) => `user:${id}:friends`;
 const incomingKey = (id: string) => `user:${id}:incoming`;
 const outgoingKey = (id: string) => `user:${id}:outgoing`;
 
 function toPublic(u: User): PublicUser {
-  return { id: u.id, email: u.email, displayName: u.displayName };
+  return {
+    id: u.id,
+    email: u.email,
+    username: u.username,
+    displayName: u.displayName,
+  };
 }
 
 function toSummary(u: User): FriendSummary {
-  return { id: u.id, email: u.email, displayName: u.displayName };
+  return {
+    id: u.id,
+    email: u.email,
+    username: u.username,
+    displayName: u.displayName,
+  };
 }
 
 export async function getUserById(id: string): Promise<User | null> {
@@ -32,32 +44,51 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   return getUserById(id);
 }
 
+export async function getUserByUsername(
+  username: string
+): Promise<User | null> {
+  const redis = getRedis();
+  const id = await redis.get<string>(usernameKey(username));
+  if (!id) return null;
+  return getUserById(id);
+}
+
 export async function createUser(input: {
   email: string;
+  username: string;
   displayName: string;
   password: string;
 }): Promise<User | { error: string }> {
   const redis = getRedis();
   const email = input.email.toLowerCase();
+  const username = input.username.toLowerCase();
 
-  // Atomic email reservation via setnx. If it exists, email is taken.
   const tempId = crypto.randomUUID();
-  const reserved = await redis.set(emailKey(email), tempId, {
-    nx: true,
-  });
-  if (reserved !== "OK") {
+
+  // Reserve email first.
+  const emailReserved = await redis.set(emailKey(email), tempId, { nx: true });
+  if (emailReserved !== "OK") {
     return { error: "An account with that email already exists." };
   }
 
-  const id = tempId;
+  // Reserve username; roll back email on failure.
+  const usernameReserved = await redis.set(usernameKey(username), tempId, {
+    nx: true,
+  });
+  if (usernameReserved !== "OK") {
+    await redis.del(emailKey(email));
+    return { error: "That username is taken." };
+  }
+
   const user: User = {
-    id,
+    id: tempId,
     email,
+    username,
     displayName: input.displayName.trim(),
     passwordHash: await bcrypt.hash(input.password, BCRYPT_ROUNDS),
     createdAt: Date.now(),
   };
-  await redis.set(userKey(id), user);
+  await redis.set(userKey(tempId), user);
   return user;
 }
 
@@ -118,12 +149,10 @@ async function loadSummaries(ids: string[]): Promise<FriendSummary[]> {
   return users.filter((u): u is User => !!u).map(toSummary);
 }
 
-export async function sendFriendRequest(
+export async function sendFriendRequestToUser(
   fromUserId: string,
-  toEmail: string
+  toUser: User
 ): Promise<{ ok: true } | { error: string }> {
-  const toUser = await getUserByEmail(toEmail);
-  if (!toUser) return { error: "No user found with that email." };
   if (toUser.id === fromUserId) return { error: "You can't friend yourself." };
 
   const redis = getRedis();
@@ -137,7 +166,9 @@ export async function sendFriendRequest(
     return { ok: true };
   }
 
-  // Otherwise record pending in both directions.
+  const outgoing = await redis.sismember(outgoingKey(fromUserId), toUser.id);
+  if (outgoing) return { error: "Request already sent." };
+
   await Promise.all([
     redis.sadd(outgoingKey(fromUserId), toUser.id),
     redis.sadd(incomingKey(toUser.id), fromUserId),

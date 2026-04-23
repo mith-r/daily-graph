@@ -24,6 +24,7 @@ export type TodayResponse = {
 export type User = {
   id: string;
   email: string;
+  username: string;
   displayName: string;
   passwordHash: string;
   createdAt: number;
@@ -33,11 +34,13 @@ export type User = {
 export type PublicUser = {
   id: string;
   email: string;
+  username: string;
   displayName: string;
 };
 
 export type FriendSummary = {
   id: string;
+  username: string;
   displayName: string;
   email: string;
 };

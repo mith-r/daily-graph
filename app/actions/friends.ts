@@ -6,10 +6,15 @@ import {
   acceptFriendRequest,
   cancelOutgoingRequest,
   declineFriendRequest,
+  getUserByEmail,
+  getUserByUsername,
   removeFriend,
-  sendFriendRequest,
+  sendFriendRequestToUser,
 } from "@/lib/users";
-import { FriendEmailSchema } from "@/lib/validation";
+import {
+  FriendIdentifierSchema,
+  parseFriendIdentifier,
+} from "@/lib/validation";
 
 export type FriendRequestState =
   | { error?: string; success?: boolean }
@@ -20,13 +25,28 @@ export async function addFriendAction(
   formData: FormData
 ): Promise<FriendRequestState> {
   const me = await requireUser();
-  const parsed = FriendEmailSchema.safeParse({
-    email: formData.get("email"),
+  const parsed = FriendIdentifierSchema.safeParse({
+    identifier: formData.get("identifier"),
   });
-  if (!parsed.success) {
-    return { error: "Enter a valid email." };
+  if (!parsed.success) return { error: "Enter an email or @username." };
+
+  const resolved = parseFriendIdentifier(parsed.data.identifier);
+  if (!resolved) return { error: "Enter a valid email or @username." };
+
+  const target =
+    resolved.kind === "email"
+      ? await getUserByEmail(resolved.value)
+      : await getUserByUsername(resolved.value);
+  if (!target) {
+    return {
+      error:
+        resolved.kind === "email"
+          ? "No user with that email."
+          : "No user with that username.",
+    };
   }
-  const result = await sendFriendRequest(me.id, parsed.data.email);
+
+  const result = await sendFriendRequestToUser(me.id, target);
   if ("error" in result) return { error: result.error };
   revalidatePath("/friends");
   return { success: true };

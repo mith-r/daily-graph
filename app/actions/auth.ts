@@ -9,6 +9,7 @@ export type AuthFormState =
   | {
       errors?: {
         email?: string[];
+        username?: string[];
         displayName?: string[];
         password?: string[];
       };
@@ -22,6 +23,7 @@ export async function signup(
 ): Promise<AuthFormState> {
   const parsed = SignupSchema.safeParse({
     email: formData.get("email"),
+    username: formData.get("username"),
     displayName: formData.get("displayName"),
     password: formData.get("password"),
   });
