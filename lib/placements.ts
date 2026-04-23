@@ -42,3 +42,37 @@ export async function getFriendPlacements(
   const all = await getAllPlacements(date);
   return all.filter((p) => friendIds.has(p.userId));
 }
+
+const HEATMAP_COLS = 20;
+const HEATMAP_ROWS = 20;
+
+export function buildHeatmap(placements: Placement[]) {
+  const grid = new Array(HEATMAP_COLS * HEATMAP_ROWS).fill(0);
+  let max = 0;
+  for (const p of placements) {
+    // x, y are -1..1. Map x→col (left→right) and y→row (top→bottom, so invert y).
+    const col = Math.min(
+      HEATMAP_COLS - 1,
+      Math.max(0, Math.floor(((p.x + 1) / 2) * HEATMAP_COLS))
+    );
+    const row = Math.min(
+      HEATMAP_ROWS - 1,
+      Math.max(0, Math.floor(((1 - p.y) / 2) * HEATMAP_ROWS))
+    );
+    const idx = row * HEATMAP_COLS + col;
+    grid[idx] += 1;
+    if (grid[idx] > max) max = grid[idx];
+  }
+  return {
+    cols: HEATMAP_COLS,
+    rows: HEATMAP_ROWS,
+    grid,
+    total: placements.length,
+    max,
+  };
+}
+
+export async function getTodaysHeatmap(date: string) {
+  const all = await getAllPlacements(date);
+  return buildHeatmap(all);
+}

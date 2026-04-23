@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  getFriendPlacements,
+  buildHeatmap,
+  getAllPlacements,
   getPlacement,
   setPlacement,
 } from "@/lib/placements";
@@ -54,14 +55,18 @@ export async function POST(req: Request) {
       await setPlacement(date, placement);
     }
 
+    const all = await getAllPlacements(date);
     const friendIds = await getFriendIds(me.id);
-    const others = await getFriendPlacements(date, friendIds);
+    const others = all.filter(
+      (p) => p.userId !== me.id && friendIds.has(p.userId)
+    );
 
     const resp: TodayResponse = {
       date,
       prompt: getTodaysPrompt(date),
       myPlacement: placement,
       others,
+      heatmap: buildHeatmap(all),
     };
     return NextResponse.json(resp);
   } catch (err) {

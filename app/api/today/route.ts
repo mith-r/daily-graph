@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getPlacement, getFriendPlacements } from "@/lib/placements";
+import {
+  buildHeatmap,
+  getAllPlacements,
+  getPlacement,
+} from "@/lib/placements";
 import { getTodaysPrompt } from "@/lib/prompts";
 import { todayKey } from "@/lib/date";
 import { getCurrentUser } from "@/lib/dal";
@@ -18,11 +22,15 @@ export async function GET() {
   const prompt = getTodaysPrompt(date);
 
   try {
-    const mine = await getPlacement(date, me.id);
+    const all = await getAllPlacements(date);
+    const mine = all.find((p) => p.userId === me.id) ?? null;
+
     let others: TodayResponse["others"] = [];
     if (mine) {
       const friendIds = await getFriendIds(me.id);
-      others = await getFriendPlacements(date, friendIds);
+      others = all.filter(
+        (p) => p.userId !== me.id && friendIds.has(p.userId)
+      );
     }
 
     const body: TodayResponse = {
@@ -30,6 +38,7 @@ export async function GET() {
       prompt,
       myPlacement: mine,
       others,
+      heatmap: buildHeatmap(all),
     };
     return NextResponse.json(body, {
       headers: { "cache-control": "no-store" },

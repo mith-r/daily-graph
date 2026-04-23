@@ -14,11 +14,20 @@ export type Placement = {
   createdAt: number;
 };
 
+export type HeatmapData = {
+  cols: number;
+  rows: number;
+  grid: number[]; // row-major; length = cols * rows
+  total: number;
+  max: number;
+};
+
 export type TodayResponse = {
   date: string;
   prompt: Prompt;
   myPlacement: Placement | null;
   others: Placement[]; // only friends, only after caller has placed
+  heatmap: HeatmapData; // global aggregate over everyone
 };
 
 export type User = {

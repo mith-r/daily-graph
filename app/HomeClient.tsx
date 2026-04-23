@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { GraphCanvas } from "@/components/GraphCanvas";
 import { Dot } from "@/components/Dot";
+import { Heatmap } from "@/components/Heatmap";
 import { PromptHeader } from "@/components/PromptHeader";
 import type { PublicUser, TodayResponse } from "@/lib/types";
 
@@ -11,10 +12,13 @@ type Props = {
   initial: TodayResponse;
 };
 
+type Mode = "friends" | "everyone";
+
 export function HomeClient({ me, initial }: Props) {
   const [data, setData] = useState<TodayResponse>(initial);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<Mode>("friends");
 
   const fetchToday = useCallback(async () => {
     try {
@@ -28,7 +32,6 @@ export function HomeClient({ me, initial }: Props) {
     }
   }, []);
 
-  // Poll for friend placements after I've placed.
   useEffect(() => {
     if (!data.myPlacement) return;
     const id = setInterval(() => {
@@ -65,6 +68,12 @@ export function HomeClient({ me, initial }: Props) {
     <>
       <PromptHeader date={data.date} placed={placed} />
 
+      {placed && (
+        <div className="flex justify-center mb-6">
+          <ModeToggle mode={mode} onChange={setMode} />
+        </div>
+      )}
+
       {error && (
         <div className="text-center text-red-400 mt-6 text-sm">{error}</div>
       )}
@@ -74,16 +83,9 @@ export function HomeClient({ me, initial }: Props) {
         onPlace={handlePlace}
         disabled={placed || submitting}
       >
-        {placed && data.myPlacement && (
-          <Dot
-            x={data.myPlacement.x}
-            y={data.myPlacement.y}
-            label={data.myPlacement.displayName}
-            userId={me.id}
-            isMe
-          />
-        )}
-        {placed &&
+        {placed && mode === "everyone" && <Heatmap data={data.heatmap} />}
+
+        {placed && mode === "friends" &&
           data.others.map((p) => (
             <Dot
               key={p.userId}
@@ -93,9 +95,19 @@ export function HomeClient({ me, initial }: Props) {
               userId={p.userId}
             />
           ))}
+
+        {placed && data.myPlacement && (
+          <Dot
+            x={data.myPlacement.x}
+            y={data.myPlacement.y}
+            label={data.myPlacement.displayName}
+            userId={me.id}
+            isMe
+          />
+        )}
       </GraphCanvas>
 
-      {placed && data.others.length === 0 && (
+      {placed && mode === "friends" && data.others.length === 0 && (
         <p className="mt-10 text-center text-sm text-white/50">
           You&apos;re the only one of your friends who&apos;s placed so far.{" "}
           <a href="/friends" className="underline hover:text-white/80">
@@ -103,6 +115,59 @@ export function HomeClient({ me, initial }: Props) {
           </a>
         </p>
       )}
+
+      {placed && mode === "everyone" && (
+        <p className="mt-10 text-center text-xs text-white/40">
+          {data.heatmap.total === 1
+            ? "You're the first one today."
+            : `${data.heatmap.total} people have placed.`}
+        </p>
+      )}
     </>
+  );
+}
+
+function ModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: Mode;
+  onChange: (m: Mode) => void;
+}) {
+  return (
+    <div className="inline-flex rounded-full border border-white/10 bg-white/[0.02] p-0.5 text-xs">
+      <ToggleButton active={mode === "friends"} onClick={() => onChange("friends")}>
+        Friends
+      </ToggleButton>
+      <ToggleButton
+        active={mode === "everyone"}
+        onClick={() => onChange("everyone")}
+      >
+        Everyone
+      </ToggleButton>
+    </div>
+  );
+}
+
+function ToggleButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1 rounded-full transition ${
+        active
+          ? "bg-white text-neutral-900 font-medium"
+          : "text-white/60 hover:text-white"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
