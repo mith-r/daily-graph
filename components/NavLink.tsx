@@ -16,10 +16,10 @@ export function NavLink({ href, children, className }: Props) {
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 
   const base =
-    "relative inline-flex items-center gap-1.5 transition after:absolute after:left-0 after:right-0 after:-bottom-1 after:h-0.5 after:rounded-full";
+    "inline-flex items-center gap-1.5 border-b-2 pb-0.5 transition";
   const state = active
-    ? "text-white font-medium after:bg-white"
-    : "text-white/60 hover:text-white after:bg-transparent";
+    ? "text-white font-medium border-white"
+    : "text-white/60 hover:text-white border-transparent";
 
   return (
     <Link
