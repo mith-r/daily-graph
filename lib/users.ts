@@ -175,6 +175,26 @@ async function loadSummaries(ids: string[]): Promise<FriendSummary[]> {
   return users.filter((u): u is User => !!u).map(toSummary);
 }
 
+export async function listAllUsers(): Promise<FriendSummary[]> {
+  const redis = getRedis();
+  const ids: string[] = [];
+  let cursor: string | number = "0";
+  do {
+    const [next, keys] = await redis.scan(cursor, {
+      match: "user:email:*",
+      count: 500,
+    });
+    cursor = next;
+    if (keys.length > 0) {
+      const values = await Promise.all(
+        keys.map((k) => redis.get<string>(k))
+      );
+      for (const id of values) if (id) ids.push(id);
+    }
+  } while (cursor !== "0" && cursor !== 0);
+  return loadSummaries(ids);
+}
+
 export async function sendFriendRequestToUser(
   fromUserId: string,
   toUser: User

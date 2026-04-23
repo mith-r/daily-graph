@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/dal";
 import {
+  listAllUsers,
   listFriends,
   listIncomingRequests,
   listOutgoingRequests,
@@ -7,16 +8,26 @@ import {
 import { Nav } from "@/components/Nav";
 import { AddFriendForm } from "./AddFriendForm";
 import { FriendActions } from "./FriendActions";
+import { QuickAddButton } from "./QuickAddButton";
 
 export const dynamic = "force-dynamic";
 
 export default async function FriendsPage() {
   const me = await requireUser();
-  const [friends, incoming, outgoing] = await Promise.all([
+  const [friends, incoming, outgoing, everyone] = await Promise.all([
     listFriends(me.id),
     listIncomingRequests(me.id),
     listOutgoingRequests(me.id),
+    listAllUsers(),
   ]);
+
+  const known = new Set<string>([
+    me.id,
+    ...friends.map((u) => u.id),
+    ...incoming.map((u) => u.id),
+    ...outgoing.map((u) => u.id),
+  ]);
+  const discover = everyone.filter((u) => !known.has(u.id));
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex flex-col">
@@ -35,6 +46,31 @@ export default async function FriendsPage() {
           </h2>
           <AddFriendForm />
         </section>
+
+        {discover.length > 0 && (
+          <section>
+            <h2 className="text-sm uppercase tracking-widest text-white/60">
+              Discover
+            </h2>
+            <p className="mt-1 text-xs text-white/50">
+              Everyone else on Daily Graph. Tap to send a request.
+            </p>
+            <ul className="mt-3 space-y-2">
+              {discover.map((u) => (
+                <li
+                  key={u.id}
+                  className="flex items-center justify-between rounded-md border border-white/10 bg-white/[0.02] px-3 py-2"
+                >
+                  <div>
+                    <div className="text-sm">{u.displayName}</div>
+                    <div className="text-xs text-white/50">@{u.username}</div>
+                  </div>
+                  <QuickAddButton id={u.id} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {incoming.length > 0 && (
           <section>

@@ -7,6 +7,7 @@ import {
   cancelOutgoingRequest,
   declineFriendRequest,
   getUserByEmail,
+  getUserById,
   getUserByUsername,
   removeFriend,
   sendFriendRequestToUser,
@@ -76,4 +77,12 @@ export async function removeFriendAction(friendId: string): Promise<void> {
   await removeFriend(me.id, friendId);
   revalidatePath("/friends");
   revalidatePath("/");
+}
+
+export async function quickAddFriendAction(targetId: string): Promise<void> {
+  const me = await requireUser();
+  const target = await getUserById(targetId);
+  if (!target) return;
+  await sendFriendRequestToUser(me.id, target);
+  revalidatePath("/friends");
 }
