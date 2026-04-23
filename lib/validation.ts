@@ -12,18 +12,28 @@ export const UsernameSchema = z
     "Username must be 3–20 chars, start with a letter, and use only a–z, 0–9, or _."
   );
 
+export const DisplayNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Display name is required.")
+  .max(24, "Display name must be 24 characters or fewer.");
+
 export const SignupSchema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email."),
   username: UsernameSchema,
-  displayName: z
-    .string()
-    .trim()
-    .min(1, "Display name is required.")
-    .max(24, "Display name must be 24 characters or fewer."),
+  displayName: DisplayNameSchema,
   password: z
     .string()
     .min(8, "Password must be at least 8 characters.")
     .max(200, "Password is too long."),
+});
+
+export const UpdateDisplayNameSchema = z.object({
+  displayName: DisplayNameSchema,
+});
+
+export const UpdateUsernameSchema = z.object({
+  username: UsernameSchema,
 });
 
 export const LoginSchema = z.object({

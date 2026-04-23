@@ -102,12 +102,33 @@ export async function verifyPassword(
 export async function updateDisplayName(
   userId: string,
   displayName: string
-): Promise<void> {
+): Promise<{ ok: true } | { error: string }> {
   const redis = getRedis();
   const user = await getUserById(userId);
-  if (!user) return;
+  if (!user) return { error: "User not found." };
   user.displayName = displayName.trim();
   await redis.set(userKey(userId), user);
+  return { ok: true };
+}
+
+export async function updateUsername(
+  userId: string,
+  newUsername: string
+): Promise<{ ok: true } | { error: string }> {
+  const redis = getRedis();
+  const user = await getUserById(userId);
+  if (!user) return { error: "User not found." };
+  const next = newUsername.trim().toLowerCase();
+  if (next === user.username) return { ok: true };
+
+  const claimed = await redis.set(usernameKey(next), userId, { nx: true });
+  if (claimed !== "OK") return { error: "That username is taken." };
+
+  const old = user.username;
+  user.username = next;
+  await redis.set(userKey(userId), user);
+  await redis.del(usernameKey(old));
+  return { ok: true };
 }
 
 // --- Friends ---

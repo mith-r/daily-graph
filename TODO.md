@@ -12,7 +12,7 @@
 - [ ] **5.** Pay to move friends around the graph
 
 ## Engagement / Retention
-- [ ] **6.** Streak + history view of past graphs
+- [x] **6.** Streak + history view of past graphs
 - [ ] **7.** Private vs. public graph toggle per post
 - [ ] **9.** Friend-group averages over time
 - [ ] **10.** Year-in-review export

@@ -3,9 +3,14 @@ import { getRedis } from "./redis";
 import type { Placement } from "./types";
 
 const DAY_TTL_SECONDS = 60 * 60 * 24 * 30;
+const USER_DATES_CAP = 120;
 
 function dayKey(date: string): string {
   return `placements:${date}`;
+}
+
+function userDatesKey(userId: string): string {
+  return `user:${userId}:dates`;
 }
 
 export async function getAllPlacements(date: string): Promise<Placement[]> {
@@ -30,8 +35,51 @@ export async function setPlacement(
 ): Promise<void> {
   const redis = getRedis();
   const key = dayKey(date);
+  const datesKey = userDatesKey(placement.userId);
   await redis.hset(key, { [placement.userId]: placement });
   await redis.expire(key, DAY_TTL_SECONDS);
+  await redis.zadd(datesKey, {
+    score: placement.createdAt,
+    member: date,
+  });
+  const size = await redis.zcard(datesKey);
+  if (size > USER_DATES_CAP) {
+    await redis.zremrangebyrank(datesKey, 0, size - USER_DATES_CAP - 1);
+  }
+}
+
+export async function listUserDates(userId: string): Promise<string[]> {
+  const redis = getRedis();
+  const members = (await redis.zrange(userDatesKey(userId), 0, -1, {
+    rev: true,
+  })) as string[];
+  return members;
+}
+
+function dayDiff(a: string, b: string): number {
+  const da = Date.UTC(
+    Number(a.slice(0, 4)),
+    Number(a.slice(5, 7)) - 1,
+    Number(a.slice(8, 10))
+  );
+  const db = Date.UTC(
+    Number(b.slice(0, 4)),
+    Number(b.slice(5, 7)) - 1,
+    Number(b.slice(8, 10))
+  );
+  return Math.round((da - db) / 86400000);
+}
+
+export function computeStreak(dates: string[], today: string): number {
+  if (dates.length === 0) return 0;
+  const gapFromToday = dayDiff(today, dates[0]);
+  if (gapFromToday < 0 || gapFromToday > 1) return 0;
+  let streak = 1;
+  for (let i = 1; i < dates.length; i++) {
+    if (dayDiff(dates[i - 1], dates[i]) === 1) streak++;
+    else break;
+  }
+  return streak;
 }
 
 export async function getFriendPlacements(
