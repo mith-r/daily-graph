@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
-import { getAllPlacements, setPlacement } from "@/lib/redis";
+import {
+  getFriendPlacements,
+  getPlacement,
+  setPlacement,
+} from "@/lib/placements";
 import { getTodaysPrompt } from "@/lib/prompts";
 import { todayKey } from "@/lib/date";
+import { getCurrentUser } from "@/lib/dal";
+import { getFriendIds } from "@/lib/users";
 import type { Placement, TodayResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -13,30 +19,18 @@ function clamp(v: unknown): number | null {
 }
 
 export async function POST(req: Request) {
+  const me = await getCurrentUser();
+  if (!me) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   let data: unknown;
   try {
     data = await req.json();
   } catch {
     return NextResponse.json({ error: "bad json" }, { status: 400 });
   }
-  const body = data as {
-    userId?: unknown;
-    displayName?: unknown;
-    x?: unknown;
-    y?: unknown;
-  };
-
-  const userId = typeof body.userId === "string" ? body.userId : "";
-  if (!/^[a-zA-Z0-9-]{8,64}$/.test(userId)) {
-    return NextResponse.json({ error: "invalid userId" }, { status: 400 });
-  }
-
-  const displayName =
-    typeof body.displayName === "string" ? body.displayName.trim() : "";
-  if (!displayName || displayName.length > 24) {
-    return NextResponse.json({ error: "invalid displayName" }, { status: 400 });
-  }
-
+  const body = data as { x?: unknown; y?: unknown };
   const x = clamp(body.x);
   const y = clamp(body.y);
   if (x === null || y === null) {
@@ -44,18 +38,25 @@ export async function POST(req: Request) {
   }
 
   const date = todayKey();
-  const placement: Placement = {
-    userId,
-    displayName,
-    x,
-    y,
-    createdAt: Date.now(),
-  };
 
   try {
-    await setPlacement(date, placement);
-    const all = await getAllPlacements(date);
-    const others = all.filter((p) => p.userId !== userId);
+    // If already placed today, just return current state (idempotent).
+    const existing = await getPlacement(date, me.id);
+    const placement: Placement =
+      existing ?? {
+        userId: me.id,
+        displayName: me.displayName,
+        x,
+        y,
+        createdAt: Date.now(),
+      };
+    if (!existing) {
+      await setPlacement(date, placement);
+    }
+
+    const friendIds = await getFriendIds(me.id);
+    const others = await getFriendPlacements(date, friendIds);
+
     const resp: TodayResponse = {
       date,
       prompt: getTodaysPrompt(date),

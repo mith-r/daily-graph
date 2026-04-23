@@ -11,12 +11,45 @@ export type Placement = {
   displayName: string;
   x: number; // -1..1
   y: number; // -1..1
-  createdAt: number; // ms since epoch
+  createdAt: number;
 };
 
 export type TodayResponse = {
-  date: string; // YYYY-MM-DD
+  date: string;
   prompt: Prompt;
   myPlacement: Placement | null;
-  others: Placement[]; // empty until the caller has placed
+  others: Placement[]; // only friends, only after caller has placed
+};
+
+export type User = {
+  id: string;
+  email: string;
+  displayName: string;
+  passwordHash: string;
+  createdAt: number;
+};
+
+// Shape exposed to clients — strips secrets.
+export type PublicUser = {
+  id: string;
+  email: string;
+  displayName: string;
+};
+
+export type FriendSummary = {
+  id: string;
+  displayName: string;
+  email: string;
+};
+
+export type FriendsState = {
+  me: PublicUser;
+  friends: FriendSummary[];
+  incoming: FriendSummary[]; // requests others sent to me
+  outgoing: FriendSummary[]; // requests I sent
+};
+
+export type SessionPayload = {
+  userId: string;
+  expiresAt: number;
 };

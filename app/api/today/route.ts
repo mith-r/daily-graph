@@ -1,27 +1,29 @@
 import { NextResponse } from "next/server";
-import { getAllPlacements, getPlacement } from "@/lib/redis";
+import { getPlacement, getFriendPlacements } from "@/lib/placements";
 import { getTodaysPrompt } from "@/lib/prompts";
 import { todayKey } from "@/lib/date";
+import { getCurrentUser } from "@/lib/dal";
+import { getFriendIds } from "@/lib/users";
 import type { TodayResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const userId = url.searchParams.get("userId");
-  if (!userId || !/^[a-zA-Z0-9-]{8,64}$/.test(userId)) {
-    return NextResponse.json({ error: "invalid userId" }, { status: 400 });
+export async function GET() {
+  const me = await getCurrentUser();
+  if (!me) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const date = todayKey();
   const prompt = getTodaysPrompt(date);
 
   try {
-    const mine = await getPlacement(date, userId);
-    // Server-side gate: don't leak others until caller has placed.
-    const others = mine
-      ? (await getAllPlacements(date)).filter((p) => p.userId !== userId)
-      : [];
+    const mine = await getPlacement(date, me.id);
+    let others: TodayResponse["others"] = [];
+    if (mine) {
+      const friendIds = await getFriendIds(me.id);
+      others = await getFriendPlacements(date, friendIds);
+    }
 
     const body: TodayResponse = {
       date,
