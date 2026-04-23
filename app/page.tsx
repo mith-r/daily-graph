@@ -28,7 +28,7 @@ export default async function Home() {
     prompt,
     myPlacement: mine,
     others,
-    heatmap: buildHeatmap(all),
+    heatmap: buildHeatmap(all.filter((p) => p.userId !== me.id)),
   };
 
   return (

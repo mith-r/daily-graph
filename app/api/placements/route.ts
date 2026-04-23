@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       prompt: getTodaysPrompt(date),
       myPlacement: placement,
       others,
-      heatmap: buildHeatmap(all),
+      heatmap: buildHeatmap(all.filter((p) => p.userId !== me.id)),
     };
     return NextResponse.json(resp);
   } catch (err) {

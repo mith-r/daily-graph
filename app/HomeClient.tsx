@@ -118,9 +118,9 @@ export function HomeClient({ me, initial }: Props) {
 
       {placed && mode === "everyone" && (
         <p className="mt-10 text-center text-xs text-white/40">
-          {data.heatmap.total === 1
+          {data.heatmap.total === 0
             ? "You're the first one today."
-            : `${data.heatmap.total} people have placed.`}
+            : `${data.heatmap.total + 1} people have placed.`}
         </p>
       )}
     </>

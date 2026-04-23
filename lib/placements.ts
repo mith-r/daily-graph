@@ -91,8 +91,8 @@ export async function getFriendPlacements(
   return all.filter((p) => friendIds.has(p.userId));
 }
 
-const HEATMAP_COLS = 20;
-const HEATMAP_ROWS = 20;
+const HEATMAP_COLS = 16;
+const HEATMAP_ROWS = 16;
 
 export function buildHeatmap(placements: Placement[]) {
   const grid = new Array(HEATMAP_COLS * HEATMAP_ROWS).fill(0);

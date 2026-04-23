@@ -38,7 +38,7 @@ export async function GET() {
       prompt,
       myPlacement: mine,
       others,
-      heatmap: buildHeatmap(all),
+      heatmap: buildHeatmap(all.filter((p) => p.userId !== me.id)),
     };
     return NextResponse.json(body, {
       headers: { "cache-control": "no-store" },
