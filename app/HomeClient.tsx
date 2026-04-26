@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { GraphCanvas } from "@/components/GraphCanvas";
 import { Dot } from "@/components/Dot";
 import { Heatmap } from "@/components/Heatmap";
 import { PromptHeader } from "@/components/PromptHeader";
+import { RegressionLine } from "@/components/RegressionLine";
+import { principalAxisLine, type Point } from "@/lib/regression";
 import type { PublicUser, TodayResponse } from "@/lib/types";
 
 type Props = {
@@ -64,6 +66,31 @@ export function HomeClient({ me, initial }: Props) {
 
   const placed = !!data.myPlacement;
 
+  const regression = useMemo(() => {
+    if (!placed) return null;
+    if (mode === "friends") {
+      const points: Point[] = data.others.map((p) => ({ x: p.x, y: p.y }));
+      if (data.myPlacement) {
+        points.push({ x: data.myPlacement.x, y: data.myPlacement.y });
+      }
+      return principalAxisLine(points);
+    }
+    const { cols, rows, grid } = data.heatmap;
+    const points: Point[] = [];
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const count = grid[row * cols + col];
+        if (!count) continue;
+        points.push({
+          x: ((col + 0.5) / cols) * 2 - 1,
+          y: 1 - ((row + 0.5) / rows) * 2,
+          weight: count,
+        });
+      }
+    }
+    return principalAxisLine(points);
+  }, [placed, mode, data]);
+
   return (
     <>
       <PromptHeader date={data.date} placed={placed} />
@@ -84,6 +111,8 @@ export function HomeClient({ me, initial }: Props) {
         disabled={placed || submitting}
       >
         {placed && mode === "everyone" && <Heatmap data={data.heatmap} />}
+
+        {regression && <RegressionLine segment={regression} />}
 
         {placed && mode === "friends" &&
           data.others.map((p) => (
