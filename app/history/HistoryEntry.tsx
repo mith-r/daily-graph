@@ -1,5 +1,7 @@
 import { GraphCanvas } from "@/components/GraphCanvas";
 import { Dot } from "@/components/Dot";
+import { RegressionLine } from "@/components/RegressionLine";
+import { principalAxisLine } from "@/lib/regression";
 import type { Placement, Prompt } from "@/lib/types";
 
 type Entry = {
@@ -19,6 +21,10 @@ export function HistoryEntry({
   meId: string;
 }) {
   const { pretty, prompt, mine, others, total } = entry;
+  const regression = principalAxisLine([
+    { x: mine.x, y: mine.y },
+    ...others.map((p) => ({ x: p.x, y: p.y })),
+  ]);
   return (
     <article>
       <header className="text-center mb-8">
@@ -37,6 +43,7 @@ export function HistoryEntry({
       </header>
 
       <GraphCanvas prompt={prompt} disabled>
+        {regression && <RegressionLine segment={regression} />}
         {others.map((p) => (
           <Dot
             key={p.userId}
