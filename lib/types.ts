@@ -14,6 +14,18 @@ export type Placement = {
   createdAt: number;
 };
 
+export type Nudge = {
+  nudgerUserId: string;
+  dx: number; // offset from target's actual placement, in -2..2 (clamped server-side so target.x+dx stays in -1..1)
+  dy: number;
+  createdAt: number;
+};
+
+// A friend's placement plus my nudge of them (if I've made one today).
+export type PlacementWithNudge = Placement & {
+  myNudge?: { dx: number; dy: number };
+};
+
 export type HeatmapData = {
   cols: number;
   rows: number;
@@ -26,8 +38,9 @@ export type TodayResponse = {
   date: string;
   prompt: Prompt;
   myPlacement: Placement | null;
-  others: Placement[]; // only friends, only after caller has placed
-  heatmap: HeatmapData; // global aggregate over everyone
+  others: PlacementWithNudge[]; // only friends, only after caller has placed
+  nudgesOnMe: Nudge[];          // nudges friends have placed on me today
+  heatmap: HeatmapData;         // global aggregate over everyone
 };
 
 export type User = {
