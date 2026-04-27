@@ -16,7 +16,6 @@ export type Placement = {
 
 export type Nudge = {
   nudgerUserId: string;
-  nudgerDisplayName: string;
   dx: number; // offset from target's actual placement, in -2..2 (clamped server-side so target.x+dx stays in -1..1)
   dy: number;
   createdAt: number;

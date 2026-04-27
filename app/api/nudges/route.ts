@@ -60,7 +60,6 @@ export async function POST(req: Request) {
   try {
     await setNudge(date, targetUserId, {
       nudgerUserId: me.id,
-      nudgerDisplayName: me.displayName,
       dx,
       dy,
       createdAt: Date.now(),

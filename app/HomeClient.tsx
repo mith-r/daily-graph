@@ -35,6 +35,12 @@ export function HomeClient({ me, initial }: Props) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dataRef = useRef(data);
   const nudgingRef = useRef(nudging);
+  // Per-friend optimistic state for nudge POSTs/DELETEs that haven't returned
+  // yet. A value means "pending save"; null means "pending delete". Lets us
+  // merge server responses without clobbering other in-flight nudges.
+  const inflightNudgesRef = useRef<
+    Map<string, { dx: number; dy: number } | null>
+  >(new Map());
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
@@ -42,17 +48,33 @@ export function HomeClient({ me, initial }: Props) {
     nudgingRef.current = nudging;
   }, [nudging]);
 
+  // Apply any in-flight optimistic nudges on top of a server response so a
+  // response that was generated before another nudge was processed doesn't
+  // erase that other nudge's optimistic state.
+  const withInflight = useCallback((json: TodayResponse): TodayResponse => {
+    const inflight = inflightNudgesRef.current;
+    if (inflight.size === 0) return json;
+    return {
+      ...json,
+      others: json.others.map((p) => {
+        if (!inflight.has(p.userId)) return p;
+        const opt = inflight.get(p.userId);
+        return opt ? { ...p, myNudge: opt } : { ...p, myNudge: undefined };
+      }),
+    };
+  }, []);
+
   const fetchToday = useCallback(async () => {
     try {
       const res = await fetch("/api/today", { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as TodayResponse;
-      setData(json);
+      setData(withInflight(json));
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to load");
     }
-  }, []);
+  }, [withInflight]);
 
   useEffect(() => {
     if (!data.myPlacement) return;
@@ -95,11 +117,19 @@ export function HomeClient({ me, initial }: Props) {
     if (!nudging) return;
     const targetUserId = nudging.targetUserId;
 
+    // Lock body scroll so iOS Safari can't scroll the page out from under
+    // the drag — that would shift getBoundingClientRect() mid-gesture and
+    // throw off the marker position.
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     function clampUnit(v: number) {
       return Math.max(-1, Math.min(1, v));
     }
 
     function onMove(e: PointerEvent) {
+      // Suppress any residual scroll/zoom the browser would otherwise do.
+      if (e.cancelable) e.preventDefault();
       const target = dataRef.current.others.find(
         (p) => p.userId === targetUserId
       );
@@ -128,14 +158,19 @@ export function HomeClient({ me, initial }: Props) {
       const isRemove =
         Math.hypot(current.dx, current.dy) < NUDGE_REMOVE_THRESHOLD;
 
-      // Optimistic update so the marker doesn't flicker.
+      // Optimistic update so the marker doesn't flicker. Also stash the
+      // optimistic state in inflightNudgesRef so any server response that
+      // races with this in-flight POST (another POST returning, or polling)
+      // doesn't overwrite it.
+      const optimistic = isRemove ? null : { dx: current.dx, dy: current.dy };
+      inflightNudgesRef.current.set(targetUserId, optimistic);
       setData((prev) => ({
         ...prev,
         others: prev.others.map((p) =>
           p.userId === targetUserId
-            ? isRemove
-              ? { ...p, myNudge: undefined }
-              : { ...p, myNudge: { dx: current.dx, dy: current.dy } }
+            ? optimistic
+              ? { ...p, myNudge: optimistic }
+              : { ...p, myNudge: undefined }
             : p
         ),
       }));
@@ -157,22 +192,28 @@ export function HomeClient({ me, initial }: Props) {
             });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = (await res.json()) as TodayResponse;
-        setData(json);
+        // Drop our entry before merging so the response is authoritative for
+        // this target; other still-pending entries get preserved by withInflight.
+        inflightNudgesRef.current.delete(targetUserId);
+        setData(withInflight(json));
         setError(null);
       } catch (e) {
-        // On failure, refetch to revert optimistic state.
+        // On failure, drop the optimistic entry and refetch to revert.
+        inflightNudgesRef.current.delete(targetUserId);
         setError(e instanceof Error ? e.message : "nudge failed");
         fetchToday();
       }
     }
 
-    window.addEventListener("pointermove", onMove);
+    // passive: false is required so e.preventDefault() in onMove works.
+    window.addEventListener("pointermove", onMove, { passive: false });
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
+      document.body.style.overflow = prevOverflow;
     };
     // Intentionally only depend on targetUserId — the drag's per-frame state
     // updates flow through dataRef and nudgingRef so they don't reinstall
