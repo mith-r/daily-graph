@@ -19,10 +19,12 @@ export async function GET() {
   }
 
   const date = todayKey();
-  const prompt = getTodaysPrompt(date);
 
   try {
-    const all = await getAllPlacements(date);
+    const [prompt, all] = await Promise.all([
+      getTodaysPrompt(date),
+      getAllPlacements(date),
+    ]);
     const mine = all.find((p) => p.userId === me.id) ?? null;
 
     let others: TodayResponse["others"] = [];

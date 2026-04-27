@@ -13,8 +13,10 @@ export default async function Home() {
   const me = await requireUser();
 
   const date = todayKey();
-  const prompt = getTodaysPrompt(date);
-  const all = await getAllPlacements(date);
+  const [prompt, all] = await Promise.all([
+    getTodaysPrompt(date),
+    getAllPlacements(date),
+  ]);
   const mine = all.find((p) => p.userId === me.id) ?? null;
 
   let others: TodayResponse["others"] = [];
