@@ -1,15 +1,9 @@
 import { NextResponse } from "next/server";
-import {
-  buildHeatmap,
-  getAllPlacements,
-  getPlacement,
-  setPlacement,
-} from "@/lib/placements";
-import { getTodaysPrompt } from "@/lib/prompts";
+import { getPlacement, setPlacement } from "@/lib/placements";
 import { todayKey } from "@/lib/date";
 import { getCurrentUser } from "@/lib/dal";
-import { getFriendIds } from "@/lib/users";
-import type { Placement, TodayResponse } from "@/lib/types";
+import { buildTodayResponse } from "@/lib/today";
+import type { Placement } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +35,7 @@ export async function POST(req: Request) {
   const date = todayKey();
 
   try {
-    // If already placed today, just return current state (idempotent).
+    // If already placed today, the new coords are ignored (idempotent).
     const existing = await getPlacement(date, me.id);
     const placement: Placement =
       existing ?? {
@@ -55,19 +49,7 @@ export async function POST(req: Request) {
       await setPlacement(date, placement);
     }
 
-    const all = await getAllPlacements(date);
-    const friendIds = await getFriendIds(me.id);
-    const others = all.filter(
-      (p) => p.userId !== me.id && friendIds.has(p.userId)
-    );
-
-    const resp: TodayResponse = {
-      date,
-      prompt: getTodaysPrompt(date),
-      myPlacement: placement,
-      others,
-      heatmap: buildHeatmap(all.filter((p) => p.userId !== me.id)),
-    };
+    const resp = await buildTodayResponse(me, date);
     return NextResponse.json(resp);
   } catch (err) {
     console.error("POST /api/placements failed:", err);
