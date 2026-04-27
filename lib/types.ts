@@ -78,3 +78,25 @@ export type SessionPayload = {
   userId: string;
   expiresAt: number;
 };
+
+export type PromptSuggestion = {
+  id: string;
+  targetDate: string;
+  authorId: string;
+  authorDisplayName: string;
+  xLeft: string;
+  xRight: string;
+  yBottom: string;
+  yTop: string;
+  createdAt: number;
+};
+
+export type PromptSuggestionWithVotes = PromptSuggestion & {
+  voteCount: number;
+};
+
+export type VoteState = {
+  targetDate: string;
+  suggestions: PromptSuggestionWithVotes[];
+  myVote: string | null;
+};

@@ -1,6 +1,8 @@
+import { cache } from "react";
 import type { Prompt } from "./types";
 import { hashString } from "./rng";
 import { todayKey } from "./date";
+import { closeRound, getWinnerPrompt } from "./voting";
 
 export const PROMPTS: Prompt[] = [
   { id: "body-count", xLeft: "still a virgin", xRight: "lost count at 30", yBottom: "cries after", yTop: "ghosts in the morning" },
@@ -19,8 +21,15 @@ const OVERRIDES: Record<string, Prompt> = {
   "2026-04-22": { id: "lust-romance", xLeft: "lustful", xRight: "romantic", yBottom: "bad at sex", yTop: "good at sex" },
 };
 
-export function getTodaysPrompt(dateKey: string = todayKey()): Prompt {
-  if (OVERRIDES[dateKey]) return OVERRIDES[dateKey];
-  const idx = hashString(dateKey) % PROMPTS.length;
-  return PROMPTS[idx];
-}
+export const getTodaysPrompt = cache(
+  async (dateKey: string = todayKey()): Promise<Prompt> => {
+    const winner =
+      dateKey === todayKey()
+        ? await closeRound(dateKey)
+        : await getWinnerPrompt(dateKey);
+    if (winner) return winner;
+    if (OVERRIDES[dateKey]) return OVERRIDES[dateKey];
+    const idx = hashString(dateKey) % PROMPTS.length;
+    return PROMPTS[idx];
+  }
+);

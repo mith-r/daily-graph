@@ -26,6 +26,7 @@ export async function Nav({ me }: { me: PublicUser }) {
           </span>
         )}
       </NavLink>
+      <NavLink href="/vote">Vote</NavLink>
       <NavLink href="/history">History</NavLink>
       <NavLink href="/settings">Settings</NavLink>
     </>

@@ -26,7 +26,10 @@ export default async function HistoryPage() {
 
   const rawEntries = await Promise.all(
     dates.map(async (date) => {
-      const all = await getAllPlacements(date);
+      const [all, prompt] = await Promise.all([
+        getAllPlacements(date),
+        getTodaysPrompt(date),
+      ]);
       const mine = all.find((p) => p.userId === me.id) ?? null;
       if (!mine) return null;
       const others = all.filter(
@@ -35,7 +38,7 @@ export default async function HistoryPage() {
       return {
         date,
         pretty: prettyDate(date),
-        prompt: getTodaysPrompt(date),
+        prompt,
         mine,
         others,
         total: all.length,

@@ -40,7 +40,7 @@ export async function buildTodayResponse(
 
   return {
     date,
-    prompt: getTodaysPrompt(date),
+    prompt: await getTodaysPrompt(date),
     myPlacement: mine,
     others,
     nudgesOnMe,
