@@ -63,7 +63,7 @@ export async function POST(req: Request) {
 
     const resp: TodayResponse = {
       date,
-      prompt: getTodaysPrompt(date),
+      prompt: await getTodaysPrompt(date),
       myPlacement: placement,
       others,
       heatmap: buildHeatmap(all.filter((p) => p.userId !== me.id)),

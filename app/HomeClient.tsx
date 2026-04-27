@@ -123,6 +123,17 @@ export function HomeClient({ me, initial }: Props) {
             : `${data.heatmap.total + 1} people have placed.`}
         </p>
       )}
+
+      {placed && (
+        <p className="mt-6 text-center text-sm">
+          <a
+            href="/vote"
+            className="text-white/60 hover:text-white transition"
+          >
+            Vote on tomorrow&apos;s prompt →
+          </a>
+        </p>
+      )}
     </>
   );
 }
