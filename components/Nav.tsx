@@ -37,9 +37,14 @@ export async function Nav({ me }: { me: PublicUser }) {
     <nav className="w-full border-b border-white/10 bg-neutral-950/80 backdrop-blur">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 text-sm">
         <div className="flex items-center justify-between gap-4">
-          <Link href="/" className="font-semibold text-white">
-            Daily Graph
-          </Link>
+          <div className="flex flex-col">
+            <Link href="/" className="font-semibold text-white leading-tight">
+              Daily Graph
+            </Link>
+            <span className="text-pink-400 text-xs italic leading-tight">
+              {"“More fun than porn.”"}
+            </span>
+          </div>
           <div className="hidden sm:flex items-center gap-4">{tabs}</div>
           <div className="flex items-center gap-3">
             {streak > 0 && (

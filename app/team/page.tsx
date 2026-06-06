@@ -62,6 +62,7 @@ export default function TeamPage() {
         <Link href="/" className="text-sm text-white/60 hover:text-white transition">
           ← Daily Graph
         </Link>
+        <p className="mt-1 text-pink-400 text-xs italic">{"“More fun than porn.”"}</p>
         <h1 className="mt-6 text-3xl font-semibold">Our Team</h1>
         <p className="mt-2 text-white/60">The people building Daily Graph.</p>
 
