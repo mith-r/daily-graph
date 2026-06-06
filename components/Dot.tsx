@@ -9,9 +9,14 @@ type Props = {
   label: string;
   userId: string;
   isMe?: boolean;
+  isCelebrity?: boolean;
   onLongPressStart?: (clientX: number, clientY: number) => void;
   beingNudged?: boolean;
 };
+
+// Gold accent shared by all celebrity dots so they read as a distinct class,
+// not as friends. Matches the heatmap's warm tone (rgba(255, 220, 90)).
+const CELEB_GOLD = "#ffdc5a";
 
 export function Dot({
   x,
@@ -19,12 +24,13 @@ export function Dot({
   label,
   userId,
   isMe,
+  isCelebrity,
   onLongPressStart,
   beingNudged,
 }: Props) {
   const left = `${toPct(x)}%`;
   const top = `${toPct(y, true)}%`;
-  const color = isMe ? "white" : colorFor(userId);
+  const color = isMe ? "white" : isCelebrity ? CELEB_GOLD : colorFor(userId);
   const interactive = !!onLongPressStart;
 
   const handlers = useLongPress((e) => {
@@ -41,7 +47,11 @@ export function Dot({
             actually pressed. */}
         <div
           className={`rounded-full transition-transform duration-150 ${
-            isMe ? "w-4 h-4 ring-2 ring-white/80" : "w-3 h-3"
+            isMe
+              ? "w-4 h-4 ring-2 ring-white/80"
+              : isCelebrity
+                ? "w-3.5 h-3.5 ring-2 ring-amber-300/70"
+                : "w-3 h-3"
           } ${
             beingNudged
               ? "scale-[1.6] ring-2 ring-white shadow-lg"
@@ -66,8 +76,12 @@ export function Dot({
           />
         )}
       </div>
-      <div className="mt-1 text-xs text-white/80 max-w-[5rem] truncate sm:max-w-none sm:whitespace-nowrap select-none pointer-events-none">
-        {isMe ? `${label} (you)` : label}
+      <div
+        className={`mt-1 text-xs max-w-[5rem] truncate sm:max-w-none sm:whitespace-nowrap select-none pointer-events-none ${
+          isCelebrity ? "text-amber-200/90" : "text-white/80"
+        }`}
+      >
+        {isMe ? `${label} (you)` : isCelebrity ? `✨ ${label}` : label}
       </div>
     </div>
   );

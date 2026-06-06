@@ -43,3 +43,6 @@ next-env.d.ts
 
 # Claude Code local settings
 .claude/
+
+# Nested Conductor base clone (backs ~/conductor/workspaces/daily-graph/*) — never commit it
+/daily-graph/
