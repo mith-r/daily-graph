@@ -11,10 +11,12 @@ type Member = {
   role: string;
   /** Path under /public, or null to fall back to an initials avatar. */
   photo: string | null;
+  /** CSS object-position for the circular crop. Defaults to center. */
+  focus?: string;
 };
 
 const TEAM: Member[] = [
-  { name: "Thomas Dennis", role: "CEO", photo: "/team/thomas-dennis.jpg" },
+  { name: "Thomas Dennis", role: "CEO", photo: "/team/thomas-dennis.jpg", focus: "center top" },
   { name: "Mithun Rameshkumar", role: "CTO", photo: "/team/mithun-rameshkumar.jpg" },
   { name: "Jasper Johnson", role: "CMO", photo: "/team/jasper-johnson.jpg" },
   { name: "Aren Carlson", role: "Founding Engineer", photo: "/team/aren-carlson.jpg" },
@@ -39,6 +41,7 @@ function MemberCard({ member }: { member: Member }) {
             src={member.photo}
             alt={member.name}
             className="h-full w-full object-cover"
+            style={{ objectPosition: member.focus ?? "center" }}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-neutral-800 text-2xl font-semibold text-white/70">
