@@ -34,12 +34,9 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="relative min-h-full flex flex-col">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-3 top-2 z-50 flex max-w-[calc(100%-1.5rem)] justify-start sm:left-4 sm:top-3"
-        >
-          <span className="text-pink-400 text-lg sm:text-2xl font-bold italic [text-shadow:0_1px_3px_rgba(0,0,0,0.7)]">
+      <body className="min-h-full flex flex-col">
+        <div aria-hidden className="px-3 pt-2 sm:px-4 sm:pt-3">
+          <span className="text-pink-400 text-sm sm:text-2xl font-bold italic [text-shadow:0_1px_3px_rgba(0,0,0,0.7)]">
             {"“More fun than porn.”"}
           </span>
         </div>
