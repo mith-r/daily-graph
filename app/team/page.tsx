@@ -32,7 +32,7 @@ function initials(name: string) {
 function MemberCard({ member }: { member: Member }) {
   return (
     <li className="flex flex-col items-center text-center rounded-2xl border border-white/10 bg-neutral-900/40 p-6">
-      <div className="relative h-32 w-32 overflow-hidden rounded-full ring-1 ring-white/10">
+      <div className="relative aspect-square w-32 overflow-hidden rounded-2xl ring-1 ring-white/10">
         {member.photo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

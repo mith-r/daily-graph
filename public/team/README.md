@@ -1,7 +1,8 @@
 # Team photos
 
 Drop each photo here with the exact filename below. The `/team` page reads them
-from these paths. Square crops look best (rendered in a 128×128 circle).
+from these paths. Use square images — they're displayed in a 128×128 square and
+filled with `object-cover`, so a square source avoids any cropping surprises.
 
 | Filename                   | Person              | Description                          |
 | -------------------------- | ------------------- | ------------------------------------ |
