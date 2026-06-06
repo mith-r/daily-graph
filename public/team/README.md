@@ -8,7 +8,7 @@ from these paths. Square crops look best (rendered in a 128×128 circle).
 | `thomas-dennis.jpg`        | Thomas Dennis (CEO) | Navy suit, red tie, by the columns   |
 | `mithun-rameshkumar.jpg`   | Mithun Rameshkumar  | Cycling kit, maroon Rapha jersey     |
 | `jasper-johnson.jpg`       | Jasper Johnson      | Cycling kit, pink helmet             |
+| `aren-carlson.jpg`         | Aren Carlson        | Founding Engineer                    |
 
-Aren Carlson (Founding Engineer) currently has no photo and renders as an
-initials avatar. To add one, drop `aren-carlson.jpg` here and set its `photo`
-path in `app/team/page.tsx`.
+All four photos are in place. Source images are downsized to a 512px-max JPEG
+(longest side), which is plenty for the 128×128 circle and keeps the repo light.

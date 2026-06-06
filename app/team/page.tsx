@@ -17,7 +17,7 @@ const TEAM: Member[] = [
   { name: "Thomas Dennis", role: "CEO", photo: "/team/thomas-dennis.jpg" },
   { name: "Mithun Rameshkumar", role: "CTO", photo: "/team/mithun-rameshkumar.jpg" },
   { name: "Jasper Johnson", role: "CMO", photo: "/team/jasper-johnson.jpg" },
-  { name: "Aren Carlson", role: "Founding Engineer", photo: null },
+  { name: "Aren Carlson", role: "Founding Engineer", photo: "/team/aren-carlson.jpg" },
 ];
 
 function initials(name: string) {
