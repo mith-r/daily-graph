@@ -38,9 +38,9 @@ export default function RootLayout({
         {children}
         <div
           aria-hidden
-          className="pointer-events-none fixed inset-x-0 bottom-3 z-50 flex justify-center"
+          className="pointer-events-none fixed left-4 top-3 z-50 flex justify-start"
         >
-          <span className="text-pink-400 text-sm font-medium italic [text-shadow:0_1px_3px_rgba(0,0,0,0.7)]">
+          <span className="text-pink-400 text-2xl font-bold italic [text-shadow:0_1px_3px_rgba(0,0,0,0.7)]">
             {"“More fun than porn.”"}
           </span>
         </div>
