@@ -383,6 +383,19 @@ export function HomeClient({ me, initial }: Props) {
             />
           ))}
 
+        {placed &&
+          mode === "everyone" &&
+          data.celebrities.map((c) => (
+            <Dot
+              key={c.userId}
+              x={c.x}
+              y={c.y}
+              label={c.displayName}
+              userId={c.userId}
+              isCelebrity
+            />
+          ))}
+
         {placed && data.myPlacement && (
           <Dot
             x={data.myPlacement.x}
@@ -414,6 +427,14 @@ export function HomeClient({ me, initial }: Props) {
           {data.heatmap.total === 0
             ? "You're the first one today."
             : `${data.heatmap.total + 1} people have placed.`}
+          {data.celebrities.length > 0 && (
+            <>
+              {" "}
+              <span className="text-amber-200/70">
+                ✨ are today&apos;s celebrities.
+              </span>
+            </>
+          )}
         </p>
       )}
 

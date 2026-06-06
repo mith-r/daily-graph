@@ -41,6 +41,7 @@ export type TodayResponse = {
   others: PlacementWithNudge[]; // only friends, only after caller has placed
   nudgesOnMe: Nudge[];          // nudges friends have placed on me today
   heatmap: HeatmapData;         // global aggregate over everyone
+  celebrities: Placement[];     // parody celebrity dots shown over the heatmap
 };
 
 export type User = {

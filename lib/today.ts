@@ -3,6 +3,7 @@ import {
   buildHeatmap,
   getAllPlacements,
 } from "./placements";
+import { getCelebrityPlacements } from "./celebrities";
 import { getMyNudgesOnFriends, getNudgesOn } from "./nudges";
 import { getFriendIds } from "./users";
 import { getTodaysPrompt } from "./prompts";
@@ -45,5 +46,6 @@ export async function buildTodayResponse(
     others,
     nudgesOnMe,
     heatmap: buildHeatmap(all.filter((p) => p.userId !== me.id)),
+    celebrities: getCelebrityPlacements(date),
   };
 }
