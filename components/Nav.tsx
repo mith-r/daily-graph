@@ -28,6 +28,7 @@ export async function Nav({ me }: { me: PublicUser }) {
       </NavLink>
       <NavLink href="/vote">Vote</NavLink>
       <NavLink href="/history">History</NavLink>
+      <NavLink href="/team">Team</NavLink>
       <NavLink href="/settings">Settings</NavLink>
     </>
   );
