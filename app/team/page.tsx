@@ -33,7 +33,7 @@ function initials(name: string) {
 
 function MemberCard({ member }: { member: Member }) {
   return (
-    <li className="flex flex-col items-center text-center rounded-2xl border border-white/10 bg-neutral-900/40 p-6">
+    <li className="flex flex-col items-center text-center rounded-2xl border border-white/10 bg-white/5 p-6">
       <div className="relative h-32 w-32 overflow-hidden rounded-full ring-1 ring-white/10">
         {member.photo ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -57,7 +57,7 @@ function MemberCard({ member }: { member: Member }) {
 
 export default function TeamPage() {
   return (
-    <main className="min-h-screen bg-neutral-950 text-white">
+    <main className="min-h-screen bg-navy text-white">
       <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-16">
         <Link href="/" className="text-sm text-white/60 hover:text-white transition">
           ← Daily Graph

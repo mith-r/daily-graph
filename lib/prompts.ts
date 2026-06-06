@@ -5,20 +5,20 @@ import { todayKey } from "./date";
 import { closeRound, getWinnerPrompt } from "./voting";
 
 export const PROMPTS: Prompt[] = [
-  { id: "body-count", xLeft: "still a virgin", xRight: "lost count at 30", yBottom: "cries after", yTop: "ghosts in the morning" },
-  { id: "stamina", xLeft: "2-pump chump", xRight: "goes all night", yBottom: "missionary only", yTop: "full freak" },
+  { id: "body-count", xLeft: "saving myself", xRight: "lost count", yBottom: "catches feelings", yTop: "ghosts by morning" },
+  { id: "stamina", xLeft: "fades fast", xRight: "goes all night", yBottom: "keeps it vanilla", yTop: "down for anything" },
   { id: "rizz", xLeft: "zero rizz", xRight: "unspoken rizz", yBottom: "texts first", yTop: "waits 3 days" },
-  { id: "loyalty", xLeft: "wifed up", xRight: "different girl every weekend", yBottom: "hopeless romantic", yTop: "emotionally unavailable" },
-  { id: "screen-time", xLeft: "monk mode", xRight: "screen time: NSFW", yBottom: "vanilla", yTop: "on a watchlist" },
-  { id: "pullout-game", xLeft: "pullout king", xRight: "raw dog enjoyer", yBottom: "Plan B on deck", yTop: "fingers crossed" },
-  { id: "frat-star", xLeft: "GDI energy", xRight: "frat star", yBottom: "still hasn't pulled", yTop: "pulled at semi" },
-  { id: "tolerance", xLeft: "yaks by 9pm", xRight: "last one standing", yBottom: "lightweight bitch", yTop: "borderline problem" },
-  { id: "weekend-mode", xLeft: "studies Saturday night", xRight: "shotguns at 9am", yBottom: "blue-balled monk", yTop: "horny 24/7" },
-  { id: "discretion", xLeft: "walk of shame", xRight: "walk of pride", yBottom: "never tells the boys", yTop: "live-texts mid-hookup" },
+  { id: "loyalty", xLeft: "wifed up", xRight: "new crush every weekend", yBottom: "hopeless romantic", yTop: "emotionally unavailable" },
+  { id: "screen-time", xLeft: "monk mode", xRight: "screen time: questionable", yBottom: "vanilla", yTop: "chronically online" },
+  { id: "pullout-game", xLeft: "always careful", xRight: "lives dangerously", yBottom: "plays it safe", yTop: "fingers crossed" },
+  { id: "frat-star", xLeft: "GDI energy", xRight: "frat star", yBottom: "flying solo", yTop: "left with a number" },
+  { id: "tolerance", xLeft: "tapping out by 9", xRight: "last one standing", yBottom: "lightweight", yTop: "borderline problem" },
+  { id: "weekend-mode", xLeft: "studies Saturday night", xRight: "shotguns at 9am", yBottom: "saintly", yTop: "always down" },
+  { id: "discretion", xLeft: "walk of shame", xRight: "walk of pride", yBottom: "never tells the boys", yTop: "live-texts everything" },
 ];
 
 const OVERRIDES: Record<string, Prompt> = {
-  "2026-04-22": { id: "lust-romance", xLeft: "lustful", xRight: "romantic", yBottom: "bad at sex", yTop: "good at sex" },
+  "2026-04-22": { id: "lust-romance", xLeft: "lustful", xRight: "romantic", yBottom: "all talk", yTop: "backs it up" },
 };
 
 export const getTodaysPrompt = cache(

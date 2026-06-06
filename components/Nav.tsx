@@ -34,7 +34,7 @@ export async function Nav({ me }: { me: PublicUser }) {
   );
 
   return (
-    <nav className="w-full border-b border-white/10 bg-neutral-950/80 backdrop-blur">
+    <nav className="w-full border-b border-white/10 bg-navy/80 backdrop-blur">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 text-sm">
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col">

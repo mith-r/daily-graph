@@ -11,7 +11,7 @@ export default async function Home() {
   const initial = await buildTodayResponse(me, todayKey());
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white flex flex-col">
+    <main className="min-h-screen bg-navy text-white flex flex-col">
       <Nav me={me} />
       <div className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-12">
         <HomeClient me={me} initial={initial} />

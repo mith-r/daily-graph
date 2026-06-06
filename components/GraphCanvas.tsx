@@ -47,10 +47,10 @@ export function GraphCanvas({
         {prompt.yBottom}
       </div>
       {/* Mobile: x-axis labels render inside the graph at the edges so they don't get clipped by the viewport. */}
-      <div className="sm:hidden absolute top-1/2 left-2 -translate-y-1/2 text-xs text-white/80 bg-neutral-950/70 backdrop-blur-sm px-1.5 py-0.5 rounded max-w-[40%] truncate z-10">
+      <div className="sm:hidden absolute top-1/2 left-2 -translate-y-1/2 text-xs text-white/80 bg-navy/70 backdrop-blur-sm px-1.5 py-0.5 rounded max-w-[40%] truncate z-10">
         {prompt.xLeft}
       </div>
-      <div className="sm:hidden absolute top-1/2 right-2 -translate-y-1/2 text-xs text-white/80 bg-neutral-950/70 backdrop-blur-sm px-1.5 py-0.5 rounded max-w-[40%] truncate z-10 text-right">
+      <div className="sm:hidden absolute top-1/2 right-2 -translate-y-1/2 text-xs text-white/80 bg-navy/70 backdrop-blur-sm px-1.5 py-0.5 rounded max-w-[40%] truncate z-10 text-right">
         {prompt.xRight}
       </div>
       <div className="hidden sm:block absolute top-1/2 -left-2 -translate-x-full -translate-y-1/2 text-sm text-white/70">
