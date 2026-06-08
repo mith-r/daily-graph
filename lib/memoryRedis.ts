@@ -180,8 +180,9 @@ class MemoryRedis {
   ): Promise<string[]> {
     const z = this.zset(key);
     if (!z) return [];
-    let members = this.sortedMembers(z);
-    if (opts?.rev) members.reverse();
+    const members = opts?.rev
+      ? this.sortedMembers(z).reverse()
+      : this.sortedMembers(z);
     const s = resolveIndex(start, members.length);
     const e = resolveIndex(stop, members.length);
     return members.slice(s, e + 1);
@@ -213,7 +214,7 @@ class MemoryRedis {
     return ["0", keys]; // single page; cursor "0" ends the caller's loop
   }
 
-  async expire(key: string, _seconds: number): Promise<number> {
+  async expire(key: string): Promise<number> {
     return store.has(key) ? 1 : 0; // TTLs are a no-op in the dev stub
   }
 }
