@@ -385,6 +385,7 @@ export function HomeClient({ me, initial }: Props) {
               x={n.baseX + n.dx}
               y={n.baseY + n.dy}
               nudgerUserId={me.id}
+              color="white"
             />
           ))}
 
