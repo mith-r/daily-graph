@@ -250,7 +250,6 @@ export function HomeClient({ me, initial }: Props) {
   );
 
   const placed = !!data.myPlacement;
-  const myColor = useMemo(() => colorFor(me.id), [me.id]);
 
   // Assign colors across the whole visible peer set (friend dots + anyone who
   // nudged me) so they're spread apart and two friends never read as the same
@@ -293,7 +292,7 @@ export function HomeClient({ me, initial }: Props) {
         fromY: n.baseY,
         toX: n.baseX + n.dx,
         toY: n.baseY + n.dy,
-        color: myColor,
+        color: "white",
         opacity: isLive ? 0.7 : 0.4,
       });
     }
@@ -310,7 +309,7 @@ export function HomeClient({ me, initial }: Props) {
       }
     }
     return out;
-  }, [myNudgeMarkers, nudging, data.myPlacement, data.nudgesOnMe, myColor, colorOf]);
+  }, [myNudgeMarkers, nudging, data.myPlacement, data.nudgesOnMe, colorOf]);
 
   const regression = useMemo(() => {
     if (!placed) return null;
