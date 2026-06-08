@@ -32,12 +32,23 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 | --- | --- | --- |
 | `DEBUG_BYPASS_AUTH=1` | Bypass login; every unauthenticated request acts as a seeded "Debug User". An amber banner is shown site-wide while it's on. | ❌ Never |
 | `USE_IN_MEMORY_REDIS=1` | Replace Upstash Redis with an in-memory stub (no install needed) and auto-seed demo data on boot. | ❌ Never |
+| `ADMIN_EMAILS=person@example.com,other@example.com` | Grants `/admin` access to matching authenticated users. Use `debug@example.com` for the local debug user. | ✅ Yes |
 
 Run the app locally without a real database or login, e.g. on port 3004:
 
 ```bash
 USE_IN_MEMORY_REDIS=1 DEBUG_BYPASS_AUTH=1 SESSION_SECRET=<32+ char string> npx next dev -p 3004
 ```
+
+Run the same local mode with the admin dashboard enabled for the seeded debug
+user:
+
+```bash
+USE_IN_MEMORY_REDIS=1 DEBUG_BYPASS_AUTH=1 ADMIN_EMAILS=debug@example.com SESSION_SECRET=<32+ char string> npx next dev -p 3004
+```
+
+Then visit `/admin` after browsing the app for at least one heartbeat interval
+to see aggregate DAU and active-time metrics.
 
 When either flag is active the server logs a loud warning at startup, and the
 debug bypass renders a persistent banner in the UI — both as reminders to turn

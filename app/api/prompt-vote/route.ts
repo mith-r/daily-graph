@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordVote } from "@/lib/analytics";
 import { getCurrentUser } from "@/lib/dal";
 import {
   clearVote,
@@ -56,6 +57,9 @@ export async function POST(req: Request) {
       if (!result.ok) {
         return NextResponse.json({ error: result.error }, { status: 400 });
       }
+      await recordVote().catch((err) => {
+        console.error("analytics vote counter failed:", err);
+      });
     }
     const [suggestions, myVote] = await Promise.all([
       listSuggestionsWithVotes(targetDate),
