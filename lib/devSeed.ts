@@ -3,16 +3,110 @@ import { getRedis } from "./redis";
 import { setPlacement } from "./placements";
 import { setNudge } from "./nudges";
 import { ensureDebugUser } from "./users";
-import { DEBUG_USER } from "./debug";
 import { todayKey } from "./date";
+import { hashString, mulberry32 } from "./rng";
 import type { User } from "./types";
 
-// Demo data for the in-memory dev stub so the graph isn't empty on first load:
-// the Debug User plus two friends, all placed today, with nudges in BOTH
-// directions so the "your nudges" and "how your friends moved you" lines are
-// both visible (handy for eyeballing the Dot/line-alignment fix).
+const FRIEND_COUNT = 12;
+const CROWD_COUNT = 20;
+const INCOMING_NUDGES = 6;
+const OUTGOING_NUDGES = 5;
+const INCOMING_REQUESTS = 4;
+
+const DEMO_NAMES = [
+  "Alex",
+  "Sam",
+  "Maya",
+  "Jordan",
+  "Riley",
+  "Casey",
+  "Avery",
+  "Morgan",
+  "Quinn",
+  "Taylor",
+  "Jamie",
+  "Parker",
+  "Nina",
+  "Theo",
+  "Priya",
+  "Mateo",
+  "Leah",
+  "Noah",
+  "Iris",
+  "Miles",
+  "Zoe",
+  "Kai",
+  "Elena",
+  "Owen",
+  "Sofia",
+  "Amir",
+  "Ruby",
+  "Jules",
+  "Lena",
+  "Andre",
+  "Tessa",
+  "Finn",
+  "Mina",
+  "Rowan",
+  "Harper",
+  "Sage",
+] as const;
+
+type XY = { x: number; y: number };
+type NudgeXY = { dx: number; dy: number };
+
+// Demo data for the in-memory dev stub so the graph is dense enough to debug:
+// the Debug User plus a larger friend cast, background crowd placements for the
+// Everyone heatmap, and obvious nudge lines in both directions.
 //
 // Only invoked from instrumentation.ts when USE_IN_MEMORY_REDIS=1.
+
+function usernameFor(displayName: string): string {
+  return displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
+function seededXY(id: string): XY {
+  const rand = mulberry32(hashString(id));
+  return {
+    x: rand() * 2 - 1,
+    y: rand() * 2 - 1,
+  };
+}
+
+function maxTravelFrom(from: XY, angle: number): number {
+  const ux = Math.cos(angle);
+  const uy = Math.sin(angle);
+  const xLimit =
+    ux > 0 ? (1 - from.x) / ux : ux < 0 ? (-1 - from.x) / ux : Infinity;
+  const yLimit =
+    uy > 0 ? (1 - from.y) / uy : uy < 0 ? (-1 - from.y) / uy : Infinity;
+  return Math.max(0, Math.min(xLimit, yLimit));
+}
+
+function seededNudge(seed: string, from: XY, angleBase?: number): NudgeXY {
+  const rand = mulberry32(hashString(seed));
+  const initialAngle =
+    angleBase === undefined
+      ? rand() * Math.PI * 2
+      : angleBase + (rand() - 0.5) * 0.45;
+
+  let angle = initialAngle;
+  let travel = maxTravelFrom(from, angle);
+  for (let i = 1; i < 8; i++) {
+    const candidate = initialAngle + (Math.PI / 4) * i;
+    const candidateTravel = maxTravelFrom(from, candidate);
+    if (candidateTravel > travel) {
+      angle = candidate;
+      travel = candidateTravel;
+    }
+  }
+
+  const magnitude = Math.min(0.3 + rand() * 0.25, travel * 0.92);
+  return {
+    dx: Math.cos(angle) * magnitude,
+    dy: Math.sin(angle) * magnitude,
+  };
+}
 
 async function seedUser(
   id: string,
@@ -38,52 +132,90 @@ async function seedUser(
 export async function seedDemoData(): Promise<void> {
   const redis = getRedis();
   const me = await ensureDebugUser();
-  const alex = await seedUser("demo-alex", "alex", "Alex");
-  const sam = await seedUser("demo-sam", "sam", "Sam");
+  const demoUsers = await Promise.all(
+    DEMO_NAMES.slice(0, FRIEND_COUNT + CROWD_COUNT).map((displayName) => {
+      const username = usernameFor(displayName);
+      return seedUser(`demo-${username}`, username, displayName);
+    })
+  );
+  const friends = demoUsers.slice(0, FRIEND_COUNT);
+  const crowd = demoUsers.slice(FRIEND_COUNT);
 
   // Mutual friendships so the demo users show up in the Debug User's graph.
-  await redis.sadd(`user:${me.id}:friends`, alex.id, sam.id);
-  await redis.sadd(`user:${alex.id}:friends`, me.id);
-  await redis.sadd(`user:${sam.id}:friends`, me.id);
+  await redis.sadd(
+    `user:${me.id}:friends`,
+    friends[0].id,
+    ...friends.slice(1).map((friend) => friend.id)
+  );
+  await Promise.all(
+    friends.map((friend) => redis.sadd(`user:${friend.id}:friends`, me.id))
+  );
 
   const date = todayKey();
   const now = Date.now();
-  await setPlacement(date, {
-    userId: me.id,
-    displayName: me.displayName,
-    x: 0,
-    y: 0,
-    createdAt: now,
-  });
-  await setPlacement(date, {
-    userId: alex.id,
-    displayName: alex.displayName,
-    x: 0.5,
-    y: 0.4,
-    createdAt: now,
-  });
-  await setPlacement(date, {
-    userId: sam.id,
-    displayName: sam.displayName,
-    x: -0.45,
-    y: 0.55,
-    createdAt: now,
-  });
+  await Promise.all([
+    setPlacement(date, {
+      userId: me.id,
+      displayName: me.displayName,
+      x: 0,
+      y: 0,
+      createdAt: now,
+    }),
+    ...demoUsers.map((user) => {
+      const xy = seededXY(user.id);
+      return setPlacement(date, {
+        userId: user.id,
+        displayName: user.displayName,
+        x: xy.x,
+        y: xy.y,
+        createdAt: now,
+      });
+    }),
+  ]);
 
-  // Alex nudged ME → renders a "how your friends moved you" line from my dot.
-  await setNudge(date, me.id, {
-    nudgerUserId: alex.id,
-    dx: 0.3,
-    dy: 0.25,
-    createdAt: now,
-  });
-  // I nudged Sam → renders my nudge line from Sam's dot.
-  await setNudge(date, sam.id, {
-    nudgerUserId: me.id,
-    dx: -0.2,
-    dy: -0.15,
-    createdAt: now,
-  });
+  const incomingFriends = friends.slice(0, INCOMING_NUDGES);
+  const outgoingFriends = friends
+    .slice(INCOMING_NUDGES)
+    .slice(0, OUTGOING_NUDGES);
+  await Promise.all([
+    ...incomingFriends.map((friend, i) => {
+      const nudge = seededNudge(
+        `incoming:${date}:${friend.id}`,
+        { x: 0, y: 0 },
+        (Math.PI * 2 * i) / incomingFriends.length
+      );
+      return setNudge(date, me.id, {
+        nudgerUserId: friend.id,
+        dx: nudge.dx,
+        dy: nudge.dy,
+        createdAt: now,
+      });
+    }),
+    ...outgoingFriends.map((friend, i) => {
+      const from = seededXY(friend.id);
+      const nudge = seededNudge(
+        `outgoing:${date}:${friend.id}`,
+        from,
+        (Math.PI * 2 * i) / outgoingFriends.length + Math.PI / 6
+      );
+      return setNudge(date, friend.id, {
+        nudgerUserId: me.id,
+        dx: nudge.dx,
+        dy: nudge.dy,
+        createdAt: now,
+      });
+    }),
+  ]);
+
+  const requesters = crowd.slice(0, INCOMING_REQUESTS);
+  await Promise.all([
+    redis.sadd(
+      `user:${me.id}:incoming`,
+      requesters[0].id,
+      ...requesters.slice(1).map((user) => user.id)
+    ),
+    ...requesters.map((user) => redis.sadd(`user:${user.id}:outgoing`, me.id)),
+  ]);
 
   console.log(`[devSeed] seeded demo data for ${date}`);
 }
