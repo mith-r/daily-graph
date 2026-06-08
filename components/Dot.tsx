@@ -8,6 +8,9 @@ type Props = {
   y: number; // -1..1
   label: string;
   userId: string;
+  // Set-aware color from assignColors(); falls back to colorFor(userId) when
+  // omitted. Ignored for "me" (white) and celebrities (gold).
+  color?: string;
   isMe?: boolean;
   isCelebrity?: boolean;
   onLongPressStart?: (clientX: number, clientY: number) => void;
@@ -23,6 +26,7 @@ export function Dot({
   y,
   label,
   userId,
+  color: colorProp,
   isMe,
   isCelebrity,
   onLongPressStart,
@@ -30,7 +34,11 @@ export function Dot({
 }: Props) {
   const left = `${toPct(x)}%`;
   const top = `${toPct(y, true)}%`;
-  const color = isMe ? "white" : isCelebrity ? CELEB_GOLD : colorFor(userId);
+  const color = isMe
+    ? "white"
+    : isCelebrity
+      ? CELEB_GOLD
+      : colorProp ?? colorFor(userId);
   const interactive = !!onLongPressStart;
 
   const handlers = useLongPress((e) => {

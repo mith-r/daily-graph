@@ -6,12 +6,14 @@ type Props = {
   x: number; // -1..1
   y: number; // -1..1
   nudgerUserId: string;
+  // Set-aware color from assignColors(); falls back to colorFor(nudgerUserId).
+  color?: string;
 };
 
-export function NudgeMarker({ x, y, nudgerUserId }: Props) {
+export function NudgeMarker({ x, y, nudgerUserId, color: colorProp }: Props) {
   const left = `${toPct(x)}%`;
   const top = `${toPct(y, true)}%`;
-  const color = colorFor(nudgerUserId);
+  const color = colorProp ?? colorFor(nudgerUserId);
 
   return (
     <div
