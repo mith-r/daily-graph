@@ -1,12 +1,17 @@
 "use client";
 
 export type NudgeLine = {
+  id: string; // stable key, e.g. `out-${friendId}` / `in-${nudgerId}`
+  friendId: string; // the friend this line involves (outgoing: target; incoming: nudger)
+  kind: "incoming" | "outgoing";
   fromX: number; // -1..1
   fromY: number;
   toX: number;
   toY: number;
   color: string;
   opacity?: number;
+  dimmed?: boolean; // something else is focused
+  focused?: boolean; // this line is part of the current focus
 };
 
 type Props = {
@@ -24,20 +29,28 @@ export function NudgeLines({ lines }: Props) {
       className="absolute inset-0 w-full h-full pointer-events-none"
       viewBox="-1 -1 2 2"
     >
-      {lines.map((l, i) => (
-        <line
-          key={i}
-          x1={l.fromX}
-          y1={-l.fromY}
-          x2={l.toX}
-          y2={-l.toY}
-          stroke={l.color}
-          strokeOpacity={l.opacity ?? 0.4}
-          strokeWidth={1}
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
-        />
-      ))}
+      {lines.map((l) => {
+        const base = l.opacity ?? 0.4;
+        const opacity = l.dimmed
+          ? base * 0.2
+          : l.focused
+            ? Math.min(1, base + 0.4)
+            : base;
+        return (
+          <line
+            key={l.id}
+            x1={l.fromX}
+            y1={-l.fromY}
+            x2={l.toX}
+            y2={-l.toY}
+            stroke={l.color}
+            strokeOpacity={opacity}
+            strokeWidth={l.focused ? 2 : 1}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        );
+      })}
     </svg>
   );
 }

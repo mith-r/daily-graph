@@ -33,6 +33,9 @@ export function HomeClient({ me, initial }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("friends");
   const [nudging, setNudging] = useState<Nudging | null>(null);
+  // Tap-to-focus: a friend's userId isolates that friend's lines; me.id
+  // isolates all incoming nudges ("who moved me"); null shows everything.
+  const [focusedId, setFocusedId] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dataRef = useRef(data);
@@ -49,6 +52,20 @@ export function HomeClient({ me, initial }: Props) {
   useEffect(() => {
     nudgingRef.current = nudging;
   }, [nudging]);
+
+  // Effective focus, derived rather than stored: if the focused friend drops
+  // out of the response (e.g. across a poll) the focus reads as cleared without
+  // a setState-in-effect. Focusing my own dot (me.id) always persists.
+  const effectiveFocusedId = useMemo(() => {
+    if (focusedId == null || focusedId === me.id) return focusedId;
+    return data.others.some((p) => p.userId === focusedId) ? focusedId : null;
+  }, [focusedId, data.others, me.id]);
+
+  // Switching modes clears any focus so it can't leak into "everyone".
+  const changeMode = useCallback((m: Mode) => {
+    setMode(m);
+    setFocusedId(null);
+  }, []);
 
   // Apply any in-flight optimistic nudges on top of a server response so a
   // response that was generated before another nudge was processed doesn't
@@ -268,32 +285,59 @@ export function HomeClient({ me, initial }: Props) {
   }, [data.others, nudging]);
 
   const lines = useMemo<NudgeLine[]>(() => {
+    // A line is "relevant" to the focus when: focusing myself → it's incoming
+    // ("who moved me"); focusing a friend → it involves that friend.
+    const focusState = (kind: "incoming" | "outgoing", friendId: string) => {
+      if (effectiveFocusedId == null) return { dimmed: false, focused: false };
+      const relevant =
+        effectiveFocusedId === me.id
+          ? kind === "incoming"
+          : friendId === effectiveFocusedId;
+      return { dimmed: !relevant, focused: relevant };
+    };
+
     const out: NudgeLine[] = [];
     for (const n of myNudgeMarkers) {
       const isLive = nudging?.targetUserId === n.friendId;
       out.push({
+        id: `out-${n.friendId}`,
+        friendId: n.friendId,
+        kind: "outgoing",
         fromX: n.baseX,
         fromY: n.baseY,
         toX: n.baseX + n.dx,
         toY: n.baseY + n.dy,
         color: myColor,
         opacity: isLive ? 0.7 : 0.4,
+        ...focusState("outgoing", n.friendId),
       });
     }
     if (data.myPlacement) {
       for (const nudge of data.nudgesOnMe) {
         out.push({
+          id: `in-${nudge.nudgerUserId}`,
+          friendId: nudge.nudgerUserId,
+          kind: "incoming",
           fromX: data.myPlacement.x,
           fromY: data.myPlacement.y,
           toX: data.myPlacement.x + nudge.dx,
           toY: data.myPlacement.y + nudge.dy,
           color: colorFor(nudge.nudgerUserId),
           opacity: 0.4,
+          ...focusState("incoming", nudge.nudgerUserId),
         });
       }
     }
     return out;
-  }, [myNudgeMarkers, nudging, data.myPlacement, data.nudgesOnMe, myColor]);
+  }, [
+    myNudgeMarkers,
+    nudging,
+    data.myPlacement,
+    data.nudgesOnMe,
+    myColor,
+    effectiveFocusedId,
+    me.id,
+  ]);
 
   const regression = useMemo(() => {
     if (!placed) return null;
@@ -326,7 +370,7 @@ export function HomeClient({ me, initial }: Props) {
 
       {placed && (
         <div className="flex justify-center mb-6">
-          <ModeToggle mode={mode} onChange={setMode} />
+          <ModeToggle mode={mode} onChange={changeMode} />
         </div>
       )}
 
@@ -339,6 +383,7 @@ export function HomeClient({ me, initial }: Props) {
         onPlace={handlePlace}
         disabled={placed || submitting}
         canvasRef={canvasRef}
+        onBackgroundTap={() => setFocusedId(null)}
       >
         {placed && mode === "everyone" && <Heatmap data={data.heatmap} />}
 
@@ -356,7 +401,14 @@ export function HomeClient({ me, initial }: Props) {
               label={p.displayName}
               userId={p.userId}
               onLongPressStart={(cx, cy) => handleLongPress(p.userId, cx, cy)}
+              onTap={() =>
+                setFocusedId((cur) => (cur === p.userId ? null : p.userId))
+              }
               beingNudged={nudging?.targetUserId === p.userId}
+              dimmed={
+                effectiveFocusedId != null && effectiveFocusedId !== p.userId
+              }
+              focused={effectiveFocusedId === p.userId}
             />
           ))}
 
@@ -368,6 +420,10 @@ export function HomeClient({ me, initial }: Props) {
               x={n.baseX + n.dx}
               y={n.baseY + n.dy}
               nudgerUserId={me.id}
+              dimmed={
+                effectiveFocusedId != null && effectiveFocusedId !== n.friendId
+              }
+              focused={effectiveFocusedId === n.friendId}
             />
           ))}
 
@@ -380,6 +436,15 @@ export function HomeClient({ me, initial }: Props) {
               x={data.myPlacement!.x + nudge.dx}
               y={data.myPlacement!.y + nudge.dy}
               nudgerUserId={nudge.nudgerUserId}
+              dimmed={
+                effectiveFocusedId != null &&
+                effectiveFocusedId !== me.id &&
+                effectiveFocusedId !== nudge.nudgerUserId
+              }
+              focused={
+                effectiveFocusedId === me.id ||
+                effectiveFocusedId === nudge.nudgerUserId
+              }
             />
           ))}
 
@@ -403,6 +468,13 @@ export function HomeClient({ me, initial }: Props) {
             label={data.myPlacement.displayName}
             userId={me.id}
             isMe
+            onTap={
+              mode === "friends"
+                ? () => setFocusedId((cur) => (cur === me.id ? null : me.id))
+                : undefined
+            }
+            dimmed={effectiveFocusedId != null && effectiveFocusedId !== me.id}
+            focused={effectiveFocusedId === me.id}
           />
         )}
       </GraphCanvas>
@@ -418,7 +490,8 @@ export function HomeClient({ me, initial }: Props) {
 
       {placed && mode === "friends" && data.others.length > 0 && (
         <p className="mt-6 text-center text-xs text-white/40">
-          Hold a friend&apos;s dot and drag to nudge them.
+          Hold a friend&apos;s dot and drag to nudge them. Tap a dot to focus
+          just its lines.
         </p>
       )}
 

@@ -11,6 +11,9 @@ type Props = {
   // Optional ref to the inner canvas div, so callers can compute pointer
   // coordinates relative to it (used by the nudge drag handler).
   canvasRef?: { current: HTMLDivElement | null };
+  // Fires when the canvas is tapped after placement (placement disabled). Used
+  // to clear the tap-to-focus selection.
+  onBackgroundTap?: () => void;
 };
 
 export function GraphCanvas({
@@ -19,6 +22,7 @@ export function GraphCanvas({
   disabled,
   children,
   canvasRef,
+  onBackgroundTap,
 }: Props) {
   const internalRef = useRef<HTMLDivElement>(null);
 
@@ -28,7 +32,11 @@ export function GraphCanvas({
   }
 
   function handleClick(e: React.MouseEvent<HTMLDivElement>) {
-    if (disabled || !onPlace || !internalRef.current) return;
+    if (disabled) {
+      onBackgroundTap?.();
+      return;
+    }
+    if (!onPlace || !internalRef.current) return;
     const rect = internalRef.current.getBoundingClientRect();
     const px = (e.clientX - rect.left) / rect.width; // 0..1
     const py = (e.clientY - rect.top) / rect.height; // 0..1
