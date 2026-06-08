@@ -2,7 +2,8 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { readSession } from "./session";
-import { getUserById } from "./users";
+import { ensureDebugUser, getUserById, toPublic } from "./users";
+import { DEBUG_AUTH_ENABLED } from "./debug";
 import type { PublicUser } from "./types";
 
 export const getSession = cache(async () => {
@@ -14,15 +15,17 @@ export const getSession = cache(async () => {
 
 export const getCurrentUser = cache(async (): Promise<PublicUser | null> => {
   const session = await getSession();
-  if (!session) return null;
+  // Debug bypass: with no valid session, act as the seeded Debug User instead
+  // of being logged out. This is the single chokepoint for pages, API routes,
+  // and server actions, so the whole site becomes usable without auth.
+  if (!session) {
+    return DEBUG_AUTH_ENABLED ? toPublic(await ensureDebugUser()) : null;
+  }
   const user = await getUserById(session.userId);
-  if (!user) return null;
-  return {
-    id: user.id,
-    email: user.email,
-    username: user.username,
-    displayName: user.displayName,
-  };
+  if (!user) {
+    return DEBUG_AUTH_ENABLED ? toPublic(await ensureDebugUser()) : null;
+  }
+  return toPublic(user);
 });
 
 export async function requireUser(): Promise<PublicUser> {

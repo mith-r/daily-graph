@@ -76,8 +76,12 @@ export function Dot({
           />
         )}
       </div>
+      {/* Label is absolutely positioned below the dot so it doesn't add to the
+          wrapper's height — otherwise -translate-y-1/2 would center the
+          dot+label box and push the dot above its true coordinate, making the
+          nudge lines stop short of the dot. */}
       <div
-        className={`mt-1 text-xs max-w-[5rem] truncate sm:max-w-none sm:whitespace-nowrap select-none pointer-events-none ${
+        className={`absolute top-full left-1/2 -translate-x-1/2 mt-1 text-center text-xs max-w-[5rem] truncate sm:max-w-none sm:whitespace-nowrap select-none pointer-events-none ${
           isCelebrity ? "text-amber-200/90" : "text-white/80"
         }`}
       >
