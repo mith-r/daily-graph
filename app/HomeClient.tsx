@@ -8,7 +8,7 @@ import { NudgeMarker } from "@/components/NudgeMarker";
 import { NudgeLines, type NudgeLine } from "@/components/NudgeLines";
 import { PromptHeader } from "@/components/PromptHeader";
 import { RegressionLine } from "@/components/RegressionLine";
-import { colorFor } from "@/lib/graph";
+import { assignColors, colorFor } from "@/lib/graph";
 import { principalAxisLine, type Point } from "@/lib/regression";
 import type { PublicUser, TodayResponse } from "@/lib/types";
 
@@ -252,6 +252,23 @@ export function HomeClient({ me, initial }: Props) {
   const placed = !!data.myPlacement;
   const myColor = useMemo(() => colorFor(me.id), [me.id]);
 
+  // Assign colors across the whole visible peer set (friend dots + anyone who
+  // nudged me) so they're spread apart and two friends never read as the same
+  // color. A given user keeps one consistent color across their dot, line, and
+  // marker. Falls back to colorFor() for ids not in the set (e.g. "me").
+  const colorMap = useMemo(
+    () =>
+      assignColors([
+        ...data.others.map((p) => p.userId),
+        ...data.nudgesOnMe.map((n) => n.nudgerUserId),
+      ]),
+    [data.others, data.nudgesOnMe]
+  );
+  const colorOf = useCallback(
+    (userId: string) => colorMap.get(userId) ?? colorFor(userId),
+    [colorMap]
+  );
+
   // Compute effective nudges (saved myNudge OR live drag) for rendering.
   const myNudgeMarkers = useMemo(() => {
     return data.others
@@ -287,13 +304,13 @@ export function HomeClient({ me, initial }: Props) {
           fromY: data.myPlacement.y,
           toX: data.myPlacement.x + nudge.dx,
           toY: data.myPlacement.y + nudge.dy,
-          color: colorFor(nudge.nudgerUserId),
+          color: colorOf(nudge.nudgerUserId),
           opacity: 0.4,
         });
       }
     }
     return out;
-  }, [myNudgeMarkers, nudging, data.myPlacement, data.nudgesOnMe, myColor]);
+  }, [myNudgeMarkers, nudging, data.myPlacement, data.nudgesOnMe, myColor, colorOf]);
 
   const regression = useMemo(() => {
     if (!placed) return null;
@@ -355,6 +372,7 @@ export function HomeClient({ me, initial }: Props) {
               y={p.y}
               label={p.displayName}
               userId={p.userId}
+              color={colorOf(p.userId)}
               onLongPressStart={(cx, cy) => handleLongPress(p.userId, cx, cy)}
               beingNudged={nudging?.targetUserId === p.userId}
             />
@@ -380,6 +398,7 @@ export function HomeClient({ me, initial }: Props) {
               x={data.myPlacement!.x + nudge.dx}
               y={data.myPlacement!.y + nudge.dy}
               nudgerUserId={nudge.nudgerUserId}
+              color={colorOf(nudge.nudgerUserId)}
             />
           ))}
 
