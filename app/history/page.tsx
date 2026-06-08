@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireUser } from "@/lib/dal";
 import { getAllPlacements, listUserDates } from "@/lib/placements";
 import { getTodaysPrompt } from "@/lib/prompts";
@@ -63,9 +64,9 @@ export default async function HistoryPage() {
         {entries.length === 0 ? (
           <p className="text-sm text-white/50">
             No placements yet. Head to{" "}
-            <a href="/" className="underline hover:text-white/80">
+            <Link href="/" className="underline hover:text-white/80">
               today&apos;s graph
-            </a>{" "}
+            </Link>{" "}
             to make your first one.
           </p>
         ) : (

@@ -8,6 +8,9 @@ type Props = {
   y: number; // -1..1
   label: string;
   userId: string;
+  // Set-aware color from assignColors(); falls back to colorFor(userId) when
+  // omitted. Ignored for "me" (white) and celebrities (gold).
+  color?: string;
   isMe?: boolean;
   isCelebrity?: boolean;
   onLongPressStart?: (clientX: number, clientY: number) => void;
@@ -28,6 +31,7 @@ export function Dot({
   y,
   label,
   userId,
+  color: colorProp,
   isMe,
   isCelebrity,
   onLongPressStart,
@@ -38,7 +42,11 @@ export function Dot({
 }: Props) {
   const left = `${toPct(x)}%`;
   const top = `${toPct(y, true)}%`;
-  const color = isMe ? "white" : isCelebrity ? CELEB_GOLD : colorFor(userId);
+  const color = isMe
+    ? "white"
+    : isCelebrity
+      ? CELEB_GOLD
+      : colorProp ?? colorFor(userId);
   const interactive = !!onLongPressStart || !!onTap;
 
   const handlers = useLongPress(
@@ -92,8 +100,12 @@ export function Dot({
           />
         )}
       </div>
+      {/* Label is absolutely positioned below the dot so it doesn't add to the
+          wrapper's height — otherwise -translate-y-1/2 would center the
+          dot+label box and push the dot above its true coordinate, making the
+          nudge lines stop short of the dot. */}
       <div
-        className={`mt-1 text-xs max-w-[5rem] truncate sm:max-w-none sm:whitespace-nowrap select-none pointer-events-none ${
+        className={`absolute top-full left-1/2 -translate-x-1/2 mt-1 text-center text-xs max-w-[5rem] truncate sm:max-w-none sm:whitespace-nowrap select-none pointer-events-none ${
           isCelebrity ? "text-amber-200/90" : "text-white/80"
         }`}
       >

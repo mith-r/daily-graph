@@ -8,7 +8,7 @@ import { NudgeMarker } from "@/components/NudgeMarker";
 import { NudgeLines, type NudgeLine } from "@/components/NudgeLines";
 import { PromptHeader } from "@/components/PromptHeader";
 import { RegressionLine } from "@/components/RegressionLine";
-import { colorFor } from "@/lib/graph";
+import { assignColors, colorFor } from "@/lib/graph";
 import { principalAxisLine, type Point } from "@/lib/regression";
 import type { PublicUser, TodayResponse } from "@/lib/types";
 
@@ -267,7 +267,23 @@ export function HomeClient({ me, initial }: Props) {
   );
 
   const placed = !!data.myPlacement;
-  const myColor = useMemo(() => colorFor(me.id), [me.id]);
+
+  // Assign colors across the whole visible peer set (friend dots + anyone who
+  // nudged me) so they're spread apart and two friends never read as the same
+  // color. A given user keeps one consistent color across their dot, line, and
+  // marker. Falls back to colorFor() for ids not in the set (e.g. "me").
+  const colorMap = useMemo(
+    () =>
+      assignColors([
+        ...data.others.map((p) => p.userId),
+        ...data.nudgesOnMe.map((n) => n.nudgerUserId),
+      ]),
+    [data.others, data.nudgesOnMe]
+  );
+  const colorOf = useCallback(
+    (userId: string) => colorMap.get(userId) ?? colorFor(userId),
+    [colorMap]
+  );
 
   // Compute effective nudges (saved myNudge OR live drag) for rendering.
   const myNudgeMarkers = useMemo(() => {
@@ -307,7 +323,7 @@ export function HomeClient({ me, initial }: Props) {
         fromY: n.baseY,
         toX: n.baseX + n.dx,
         toY: n.baseY + n.dy,
-        color: myColor,
+        color: "white",
         opacity: isLive ? 0.7 : 0.4,
         ...focusState("outgoing", n.friendId),
       });
@@ -322,7 +338,7 @@ export function HomeClient({ me, initial }: Props) {
           fromY: data.myPlacement.y,
           toX: data.myPlacement.x + nudge.dx,
           toY: data.myPlacement.y + nudge.dy,
-          color: colorFor(nudge.nudgerUserId),
+          color: colorOf(nudge.nudgerUserId),
           opacity: 0.4,
           ...focusState("incoming", nudge.nudgerUserId),
         });
@@ -334,7 +350,7 @@ export function HomeClient({ me, initial }: Props) {
     nudging,
     data.myPlacement,
     data.nudgesOnMe,
-    myColor,
+    colorOf,
     effectiveFocusedId,
     me.id,
   ]);
@@ -400,6 +416,7 @@ export function HomeClient({ me, initial }: Props) {
               y={p.y}
               label={p.displayName}
               userId={p.userId}
+              color={colorOf(p.userId)}
               onLongPressStart={(cx, cy) => handleLongPress(p.userId, cx, cy)}
               onTap={() =>
                 setFocusedId((cur) => (cur === p.userId ? null : p.userId))
@@ -445,6 +462,7 @@ export function HomeClient({ me, initial }: Props) {
                 effectiveFocusedId === me.id ||
                 effectiveFocusedId === nudge.nudgerUserId
               }
+              color={colorOf(nudge.nudgerUserId)}
             />
           ))}
 

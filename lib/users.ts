@@ -1,6 +1,7 @@
 import "server-only";
 import bcrypt from "bcryptjs";
 import { getRedis } from "./redis";
+import { DEBUG_USER } from "./debug";
 import type { FriendSummary, PublicUser, User } from "./types";
 
 const BCRYPT_ROUNDS = 10;
@@ -41,15 +42,6 @@ export async function getUserById(id: string): Promise<User | null> {
 export async function getUserByEmail(email: string): Promise<User | null> {
   const redis = getRedis();
   const id = await redis.get<string>(emailKey(email));
-  if (!id) return null;
-  return getUserById(id);
-}
-
-export async function getUserByUsername(
-  username: string
-): Promise<User | null> {
-  const redis = getRedis();
-  const id = await redis.get<string>(usernameKey(username));
   if (!id) return null;
   return getUserById(id);
 }
@@ -99,6 +91,28 @@ export async function verifyPassword(
   password: string
 ): Promise<boolean> {
   return bcrypt.compare(password, user.passwordHash);
+}
+
+// Idempotently seed the fixed Debug User used by the DEBUG_BYPASS_AUTH flow.
+// Registers it in the same indexes as a normal account so it shows up in
+// friend search and "all users". Has no usable password (login via password
+// is impossible; it's reachable only through the bypass).
+export async function ensureDebugUser(): Promise<User> {
+  const existing = await getUserById(DEBUG_USER.id);
+  if (existing) return existing;
+  const redis = getRedis();
+  const user: User = {
+    ...DEBUG_USER,
+    passwordHash: "",
+    createdAt: Date.now(),
+  };
+  await Promise.all([
+    redis.set(userKey(user.id), user),
+    redis.set(emailKey(user.email), user.id),
+    redis.set(usernameKey(user.username), user.id),
+    redis.sadd(ALL_USERS_KEY, user.id),
+  ]);
+  return user;
 }
 
 export async function updateDisplayName(
