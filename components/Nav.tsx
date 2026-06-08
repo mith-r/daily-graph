@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { logout } from "@/app/actions/auth";
+import { isAdminUser } from "@/lib/admin";
 import { countIncomingRequests } from "@/lib/users";
 import { computeStreak, listUserDates } from "@/lib/placements";
 import { todayKey } from "@/lib/date";
@@ -12,6 +13,7 @@ export async function Nav({ me }: { me: PublicUser }) {
     listUserDates(me.id),
   ]);
   const streak = computeStreak(dates, todayKey());
+  const isAdmin = isAdminUser(me);
 
   const tabs = (
     <>
@@ -29,6 +31,7 @@ export async function Nav({ me }: { me: PublicUser }) {
       <NavLink href="/vote">Vote</NavLink>
       <NavLink href="/history">History</NavLink>
       <NavLink href="/team">Team</NavLink>
+      {isAdmin && <NavLink href="/admin">Admin</NavLink>}
       <NavLink href="/settings">Settings</NavLink>
     </>
   );
