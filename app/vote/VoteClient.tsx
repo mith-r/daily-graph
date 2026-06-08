@@ -99,12 +99,19 @@ function SuggestionRow({
           <span className="text-white/40">↕</span>
           <span className="text-white/90">{suggestion.yTop}</span>
         </div>
-        <div className="text-xs text-white/50 truncate">
-          {mine ? "you" : suggestion.authorDisplayName} ·{" "}
-          <span className="tabular-nums">
-            {suggestion.voteCount}{" "}
-            {suggestion.voteCount === 1 ? "vote" : "votes"}
+        <div className="flex items-center gap-2 text-xs text-white/50">
+          <span className="truncate">
+            {mine ? "you" : suggestion.authorDisplayName} ·{" "}
+            <span className="tabular-nums">
+              {suggestion.voteCount}{" "}
+              {suggestion.voteCount === 1 ? "vote" : "votes"}
+            </span>
           </span>
+          {suggestion.rolledOver && (
+            <span className="shrink-0 rounded border border-white/10 px-1 py-0.5 text-[10px] uppercase tracking-wide text-white/40">
+              held over
+            </span>
+          )}
         </div>
       </div>
       <button

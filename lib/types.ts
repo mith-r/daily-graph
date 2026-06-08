@@ -90,6 +90,10 @@ export type PromptSuggestion = {
   yBottom: string;
   yTop: string;
   createdAt: number;
+  // True when this suggestion was carried over from a previous round's
+  // un-chosen prompts. Used to show a "held over" tag and to ensure a prompt
+  // only ever rolls over once.
+  rolledOver?: boolean;
 };
 
 export type PromptSuggestionWithVotes = PromptSuggestion & {
