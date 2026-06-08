@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { DEBUG_AUTH_ENABLED } from "@/lib/debug";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,6 +36,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {DEBUG_AUTH_ENABLED && (
+          <div className="bg-amber-500 text-black text-center text-xs font-medium px-3 py-1">
+            ⚠️ Debug auth bypass active — you are the “Debug User”. Disable
+            DEBUG_BYPASS_AUTH before deploying.
+          </div>
+        )}
         {children}
         <footer className="mt-auto px-4 py-6 text-center text-[11px] leading-relaxed text-white/30">
           Celebrity placements are parody, randomly generated each day, and not
