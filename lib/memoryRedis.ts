@@ -180,8 +180,9 @@ class MemoryRedis {
   ): Promise<string[]> {
     const z = this.zset(key);
     if (!z) return [];
-    const members = this.sortedMembers(z);
-    if (opts?.rev) members.reverse();
+    const members = opts?.rev
+      ? this.sortedMembers(z).reverse()
+      : this.sortedMembers(z);
     const s = resolveIndex(start, members.length);
     const e = resolveIndex(stop, members.length);
     return members.slice(s, e + 1);
