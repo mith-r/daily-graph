@@ -21,6 +21,14 @@ type Props = {
 // not as friends. Matches the heatmap's warm tone (rgba(255, 220, 90)).
 const CELEB_GOLD = "#ffdc5a";
 
+// A label renders below its dot by default. Flip it ABOVE only in the two
+// narrow zones where "below" looks wrong:
+//   • Just above the center x-axis: a below-label crosses the axis line into
+//     the busy center. Flipping up makes labels splay away from the axis.
+const LABEL_FLIP_ABOVE_AXIS = 0.12; // y in (0, 0.12]  → flip up
+//   • Near the bottom edge: a below-label spills outside the box and clips.
+const LABEL_FLIP_NEAR_BOTTOM = -0.85; // y <= -0.85    → flip up
+
 export function Dot({
   x,
   y,
@@ -34,6 +42,11 @@ export function Dot({
 }: Props) {
   const left = `${toPct(x)}%`;
   const top = `${toPct(y, true)}%`;
+  // Flip the label above the dot when rendering it below would cross the center
+  // x-axis or spill past the bottom edge. Stays absolutely positioned either
+  // way, so it adds zero wrapper height (keeps the dot centered on its coord).
+  const labelAbove =
+    (y > 0 && y <= LABEL_FLIP_ABOVE_AXIS) || y <= LABEL_FLIP_NEAR_BOTTOM;
   const color = isMe
     ? "white"
     : isCelebrity
@@ -84,14 +97,15 @@ export function Dot({
           />
         )}
       </div>
-      {/* Label is absolutely positioned below the dot so it doesn't add to the
-          wrapper's height — otherwise -translate-y-1/2 would center the
-          dot+label box and push the dot above its true coordinate, making the
-          nudge lines stop short of the dot. */}
+      {/* Label is absolutely positioned (below the dot by default, above it
+          when labelAbove) so it doesn't add to the wrapper's height —
+          otherwise -translate-y-1/2 would center the dot+label box and push
+          the dot off its true coordinate, making the nudge lines stop short
+          of the dot. */}
       <div
-        className={`absolute top-full left-1/2 -translate-x-1/2 mt-1 text-center text-xs max-w-[5rem] truncate sm:max-w-none sm:whitespace-nowrap select-none pointer-events-none ${
-          isCelebrity ? "text-amber-200/90" : "text-white/80"
-        }`}
+        className={`absolute left-1/2 -translate-x-1/2 text-center text-xs max-w-[5rem] truncate sm:max-w-none sm:whitespace-nowrap select-none pointer-events-none ${
+          labelAbove ? "bottom-full mb-1" : "top-full mt-1"
+        } ${isCelebrity ? "text-amber-200/90" : "text-white/80"}`}
       >
         {isMe ? `${label} (you)` : isCelebrity ? `✨ ${label}` : label}
       </div>
