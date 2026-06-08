@@ -5,10 +5,16 @@ import {
   listIncomingRequests,
   listOutgoingRequests,
 } from "@/lib/users";
+import type { FriendSummary } from "@/lib/types";
 import { Nav } from "@/components/Nav";
-import { AddFriendForm } from "./AddFriendForm";
-import { FriendActions } from "./FriendActions";
-import { QuickAddButton } from "./QuickAddButton";
+import { FriendsBrowser } from "./FriendsBrowser";
+
+// Strip email (and any other secrets) before handing lists to the client component.
+const toPerson = (u: FriendSummary) => ({
+  id: u.id,
+  username: u.username,
+  displayName: u.displayName,
+});
 
 export const dynamic = "force-dynamic";
 
@@ -40,109 +46,12 @@ export default async function FriendsPage() {
           </p>
         </section>
 
-        <section>
-          <h2 className="text-sm uppercase tracking-widest text-white/60">
-            Add a friend
-          </h2>
-          <AddFriendForm />
-        </section>
-
-        <section>
-          <h2 className="text-sm uppercase tracking-widest text-white/60">
-            Discover
-          </h2>
-          <p className="mt-1 text-xs text-white/50">
-            Everyone else on Daily Graph. Tap to send a request.
-          </p>
-          {discover.length === 0 ? (
-            <p className="mt-3 text-sm text-white/50">
-              No one else to add right now.
-            </p>
-          ) : (
-            <ul className="mt-3 space-y-2">
-              {discover.map((u) => (
-                <li
-                  key={u.id}
-                  className="flex items-center justify-between rounded-md border border-white/10 bg-white/[0.02] px-3 py-2"
-                >
-                  <div>
-                    <div className="text-sm">{u.displayName}</div>
-                    <div className="text-xs text-white/50">@{u.username}</div>
-                  </div>
-                  <QuickAddButton id={u.id} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {incoming.length > 0 && (
-          <section>
-            <h2 className="text-sm uppercase tracking-widest text-white/60">
-              Incoming requests
-            </h2>
-            <ul className="mt-3 space-y-2">
-              {incoming.map((u) => (
-                <li
-                  key={u.id}
-                  className="flex items-center justify-between rounded-md border border-white/10 bg-white/[0.02] px-3 py-2"
-                >
-                  <div>
-                    <div className="text-sm">{u.displayName}</div>
-                    <div className="text-xs text-white/50">@{u.username}</div>
-                  </div>
-                  <FriendActions id={u.id} kind="incoming" />
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {outgoing.length > 0 && (
-          <section>
-            <h2 className="text-sm uppercase tracking-widest text-white/60">
-              Sent requests
-            </h2>
-            <ul className="mt-3 space-y-2">
-              {outgoing.map((u) => (
-                <li
-                  key={u.id}
-                  className="flex items-center justify-between rounded-md border border-white/10 bg-white/[0.02] px-3 py-2"
-                >
-                  <div>
-                    <div className="text-sm">{u.displayName}</div>
-                    <div className="text-xs text-white/50">@{u.username}</div>
-                  </div>
-                  <FriendActions id={u.id} kind="outgoing" />
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        <section>
-          <h2 className="text-sm uppercase tracking-widest text-white/60">
-            Your friends
-          </h2>
-          {friends.length === 0 ? (
-            <p className="mt-3 text-sm text-white/50">No friends yet.</p>
-          ) : (
-            <ul className="mt-3 space-y-2">
-              {friends.map((u) => (
-                <li
-                  key={u.id}
-                  className="flex items-center justify-between rounded-md border border-white/10 bg-white/[0.02] px-3 py-2"
-                >
-                  <div>
-                    <div className="text-sm">{u.displayName}</div>
-                    <div className="text-xs text-white/50">@{u.username}</div>
-                  </div>
-                  <FriendActions id={u.id} kind="friend" />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <FriendsBrowser
+          friends={friends.map(toPerson)}
+          incoming={incoming.map(toPerson)}
+          outgoing={outgoing.map(toPerson)}
+          discover={discover.map(toPerson)}
+        />
       </div>
     </main>
   );

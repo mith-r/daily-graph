@@ -45,15 +45,6 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   return getUserById(id);
 }
 
-export async function getUserByUsername(
-  username: string
-): Promise<User | null> {
-  const redis = getRedis();
-  const id = await redis.get<string>(usernameKey(username));
-  if (!id) return null;
-  return getUserById(id);
-}
-
 export async function createUser(input: {
   email: string;
   username: string;
