@@ -6,24 +6,33 @@ type Props = {
   x: number; // -1..1
   y: number; // -1..1
   nudgerUserId: string;
+  dimmed?: boolean;
+  focused?: boolean;
   // Set-aware color from assignColors(); falls back to colorFor(nudgerUserId).
   color?: string;
 };
 
-export function NudgeMarker({ x, y, nudgerUserId, color: colorProp }: Props) {
+export function NudgeMarker({
+  x,
+  y,
+  nudgerUserId,
+  dimmed,
+  focused,
+  color: colorProp,
+}: Props) {
   const left = `${toPct(x)}%`;
   const top = `${toPct(y, true)}%`;
   const color = colorProp ?? colorFor(nudgerUserId);
 
   return (
     <div
-      className="absolute -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full pointer-events-none"
+      className="absolute -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full pointer-events-none transition-opacity duration-200"
       style={{
         left,
         top,
         backgroundColor: color,
         boxShadow: `0 0 6px ${color}`,
-        opacity: 0.75,
+        opacity: dimmed ? 0.15 : focused ? 1 : 0.75,
       }}
     />
   );

@@ -11,6 +11,8 @@ const FRIEND_COUNT = 12;
 const CROWD_COUNT = 20;
 const INCOMING_NUDGES = 6;
 const OUTGOING_NUDGES = 5;
+// Friend-on-friend nudges so focusing a friend shows "who moved them".
+const INTER_NUDGES = 10;
 const INCOMING_REQUESTS = 4;
 
 const DEMO_NAMES = [
@@ -206,6 +208,24 @@ export async function seedDemoData(): Promise<void> {
       });
     }),
   ]);
+
+  // Friend-on-friend nudges: a handful of friends move a handful of other
+  // friends, so focusing a friend reveals "who moved them" with several arrows.
+  await Promise.all(
+    Array.from({ length: INTER_NUDGES }, (_, i) => {
+      const target = friends[i % FRIEND_COUNT];
+      const nudger = friends[(i * 5 + 3) % FRIEND_COUNT];
+      if (nudger.id === target.id) return null;
+      const from = seededXY(target.id);
+      const nudge = seededNudge(`inter:${date}:${nudger.id}:${target.id}`, from);
+      return setNudge(date, target.id, {
+        nudgerUserId: nudger.id,
+        dx: nudge.dx,
+        dy: nudge.dy,
+        createdAt: now,
+      });
+    }).filter((p): p is Promise<void> => p !== null)
+  );
 
   const requesters = crowd.slice(0, INCOMING_REQUESTS);
   await Promise.all([

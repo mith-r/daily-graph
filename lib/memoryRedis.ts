@@ -222,7 +222,8 @@ class MemoryRedis {
     return ["0", keys]; // single page; cursor "0" ends the caller's loop
   }
 
-  async expire(key: string): Promise<number> {
+  async expire(key: string, _seconds: number): Promise<number> {
+    void _seconds;
     return store.has(key) ? 1 : 0; // TTLs are a no-op in the dev stub
   }
 }

@@ -4,7 +4,7 @@ import {
   getAllPlacements,
 } from "./placements";
 import { getCelebrityPlacements } from "./celebrities";
-import { getMyNudgesOnFriends, getNudgesOn } from "./nudges";
+import { getMyNudgesOnFriends, getNudgesOn, getNudgesOnMany } from "./nudges";
 import { getFriendIds } from "./users";
 import { getTodaysPrompt } from "./prompts";
 import type { PlacementWithNudge, PublicUser, TodayResponse } from "./types";
@@ -28,10 +28,22 @@ export async function buildTodayResponse(
       (p) => p.userId !== me.id && friendIds.has(p.userId)
     );
     const placedFriendIds = friendPlacements.map((p) => p.userId);
+    const placedFriendIdSet = new Set(placedFriendIds);
     const myNudges = await getMyNudgesOnFriends(date, me.id, placedFriendIds);
+    // Nudges on each friend from my OTHER placed friends — drives the
+    // "who moved this friend" focus view. Restricted to my friends so a
+    // stranger's nudge on my friend never leaks; my own nudge stays in myNudge.
+    const nudgesOnFriends = await getNudgesOnMany(date, placedFriendIds);
     others = friendPlacements.map((p) => {
       const myNudge = myNudges.get(p.userId);
-      return myNudge ? { ...p, myNudge } : p;
+      const fromFriends = (nudgesOnFriends.get(p.userId) ?? []).filter(
+        (n) => n.nudgerUserId !== me.id && placedFriendIdSet.has(n.nudgerUserId)
+      );
+      return {
+        ...p,
+        ...(myNudge ? { myNudge } : {}),
+        ...(fromFriends.length ? { nudgesFromFriends: fromFriends } : {}),
+      };
     });
 
     const all_nudges = await getNudgesOn(date, me.id);

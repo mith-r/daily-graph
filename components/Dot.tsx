@@ -14,7 +14,12 @@ type Props = {
   isMe?: boolean;
   isCelebrity?: boolean;
   onLongPressStart?: (clientX: number, clientY: number) => void;
+  onTap?: () => void;
   beingNudged?: boolean;
+  // Something else is focused, so this dot fades back.
+  dimmed?: boolean;
+  // This dot is the current focus target.
+  focused?: boolean;
 };
 
 // Gold accent shared by all celebrity dots so they read as a distinct class,
@@ -38,7 +43,10 @@ export function Dot({
   isMe,
   isCelebrity,
   onLongPressStart,
+  onTap,
   beingNudged,
+  dimmed,
+  focused,
 }: Props) {
   const left = `${toPct(x)}%`;
   const top = `${toPct(y, true)}%`;
@@ -52,15 +60,20 @@ export function Dot({
     : isCelebrity
       ? CELEB_GOLD
       : colorProp ?? colorFor(userId);
-  const interactive = !!onLongPressStart;
+  const interactive = !!onLongPressStart || !!onTap;
 
-  const handlers = useLongPress((e) => {
-    onLongPressStart?.(e.clientX, e.clientY);
-  });
+  const handlers = useLongPress(
+    onLongPressStart
+      ? (e) => onLongPressStart(e.clientX, e.clientY)
+      : undefined,
+    { onTap }
+  );
 
   return (
     <div
-      className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center animate-in fade-in duration-500"
+      className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center animate-in fade-in duration-500 transition-opacity ${
+        dimmed && !focused ? "opacity-25" : "opacity-100"
+      }`}
       style={{ left, top }}
     >
       <div className="relative">
@@ -93,6 +106,9 @@ export function Dot({
               WebkitUserSelect: "none",
               cursor: beingNudged ? "grabbing" : "grab",
             }}
+            // Stop the tap from bubbling to the canvas background handler,
+            // which would immediately clear the focus we're setting.
+            onClick={(e) => e.stopPropagation()}
             {...handlers}
           />
         )}
