@@ -1,0 +1,26 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+# Conductor repository settings (migrated from the legacy conductor.json).
+# Once this file exists, Conductor ignores conductor.json.
+
+[scripts]
+# Runs when Conductor creates a new workspace.
+#
+# Keeping local main current: Conductor already branches new workspaces from the
+# latest origin commit, but the `main` checked out in the root repo
+# ($CONDUCTOR_ROOT_PATH) drifts behind every time you merge a PR. The two git
+# commands below fast-forward that root `main` to the latest origin before we
+# install deps, so creating a workspace always refreshes your local main.
+#   - `--ff-only` means it will never create a merge commit; if main can't be
+#     fast-forwarded it simply does nothing.
+#   - `|| true` keeps a non-fast-forwardable / dirty root from failing setup.
+setup = 'git -C "$CONDUCTOR_ROOT_PATH" fetch --prune origin && git -C "$CONDUCTOR_ROOT_PATH" pull --ff-only || true; npm ci --no-audit --no-fund'
+
+# Runs before Conductor archives a workspace (e.g. after its PR is merged).
+# Fast-forward the root `main` right at merge/archive time so the very next
+# workspace branches from fully up-to-date code.
+archive = 'git -C "$CONDUCTOR_ROOT_PATH" fetch --prune origin && git -C "$CONDUCTOR_ROOT_PATH" pull --ff-only || true'
+
+# Command behind the Run button.
+run = 'npm run dev -- -H localhost -p 3000'
+run_mode = "nonconcurrent"
