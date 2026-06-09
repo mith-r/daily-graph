@@ -74,7 +74,8 @@ export function validateSuggestion(
 }
 
 export async function listSuggestionsWithVotes(
-  targetDate: string
+  targetDate: string,
+  opts?: { excludeUserIds?: ReadonlySet<string> }
 ): Promise<PromptSuggestionWithVotes[]> {
   const redis = getRedis();
   const raw = await redis.hgetall<Record<string, PromptSuggestion>>(
@@ -83,8 +84,21 @@ export async function listSuggestionsWithVotes(
   if (!raw) return [];
   const suggestions = Object.values(raw);
   if (suggestions.length === 0) return [];
+  // When excludeUserIds is given (the admin dashboard), drop those voters from
+  // the tally; otherwise SCARD is enough. Gameplay callers pass nothing, so
+  // winner selection still counts every vote.
+  const exclude = opts?.excludeUserIds;
   const counts = await Promise.all(
-    suggestions.map((s) => redis.scard(suggestionVotesKey(targetDate, s.id)))
+    suggestions.map(async (s) => {
+      const key = suggestionVotesKey(targetDate, s.id);
+      if (!exclude || exclude.size === 0) {
+        return redis.scard(key);
+      }
+      const voters = (await redis.smembers(key)) as string[];
+      let count = 0;
+      for (const id of voters) if (!exclude.has(id)) count++;
+      return count;
+    })
   );
   const withVotes: PromptSuggestionWithVotes[] = suggestions.map((s, i) => ({
     ...s,

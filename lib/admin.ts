@@ -12,9 +12,13 @@ function adminEmails(): Set<string> {
   );
 }
 
+export function isAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return adminEmails().has(email.toLowerCase());
+}
+
 export function isAdminUser(user: Pick<PublicUser, "email"> | null): boolean {
-  if (!user) return false;
-  return adminEmails().has(user.email.toLowerCase());
+  return isAdminEmail(user?.email);
 }
 
 export async function requireAdmin(): Promise<PublicUser> {
