@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/dal";
+import { isAdminUser } from "@/lib/admin";
 import { recordAnalyticsPing, type AnalyticsEvent } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,11 @@ function parseActiveMs(value: unknown): number {
 export async function POST(req: Request) {
   const me = await getCurrentUser();
   if (!me) {
+    return NextResponse.json({ ok: true });
+  }
+  // Admins are excluded from analytics so their own browsing — including
+  // refreshing this dashboard — doesn't inflate the engagement metrics.
+  if (isAdminUser(me)) {
     return NextResponse.json({ ok: true });
   }
 

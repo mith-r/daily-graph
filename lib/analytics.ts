@@ -129,11 +129,32 @@ export async function recordVote(date = todayKey()): Promise<void> {
   await incrementDay(date, "votes");
 }
 
-export async function getAnalyticsDay(date: string): Promise<AnalyticsDay> {
+// DAU is a set of user ids, so admin activity can be excluded retroactively by
+// counting the set minus the excluded ids. The scalar counters (activeMs,
+// pageViews, heartbeats) can't be decomposed per-user, so for those admins are
+// only excluded going forward (at the recording sites).
+async function countActiveUsers(
+  date: string,
+  exclude?: ReadonlySet<string>
+): Promise<number> {
+  const redis = getRedis();
+  if (!exclude || exclude.size === 0) {
+    return redis.scard(activeUsersKey(date));
+  }
+  const members = (await redis.smembers(activeUsersKey(date))) as string[];
+  let count = 0;
+  for (const id of members) if (!exclude.has(id)) count++;
+  return count;
+}
+
+export async function getAnalyticsDay(
+  date: string,
+  excludeUserIds?: ReadonlySet<string>
+): Promise<AnalyticsDay> {
   const redis = getRedis();
   const [raw, activeUsers] = await Promise.all([
     redis.hgetall<Record<string, unknown>>(dayKey(date)),
-    redis.scard(activeUsersKey(date)),
+    countActiveUsers(date, excludeUserIds),
   ]);
   return {
     date,
@@ -148,12 +169,15 @@ export async function getAnalyticsDay(date: string): Promise<AnalyticsDay> {
 }
 
 export async function getAnalyticsSummary(
-  endDate = todayKey()
+  endDate = todayKey(),
+  excludeUserIds?: ReadonlySet<string>
 ): Promise<AnalyticsSummary> {
   const dates = Array.from({ length: RECENT_DAYS }, (_, i) =>
     addDays(endDate, -i)
   );
-  const recentDays = await Promise.all(dates.map(getAnalyticsDay));
+  const recentDays = await Promise.all(
+    dates.map((date) => getAnalyticsDay(date, excludeUserIds))
+  );
   const first7 = recentDays.slice(0, 7);
   const totalDau7 = first7.reduce((sum, day) => sum + day.activeUsers, 0);
   const totalDau30 = recentDays.reduce((sum, day) => sum + day.activeUsers, 0);

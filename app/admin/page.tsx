@@ -1,5 +1,5 @@
 import { Nav } from "@/components/Nav";
-import { requireAdmin } from "@/lib/admin";
+import { isAdminEmail, requireAdmin } from "@/lib/admin";
 import { getAnalyticsSummary } from "@/lib/analytics";
 import { todayKey } from "@/lib/date";
 import { getAllPlacements } from "@/lib/placements";
@@ -36,17 +36,30 @@ export default async function AdminPage() {
   const today = todayKey();
   const voteDate = openRoundDate();
 
-  const [analytics, users, placements, suggestions] = await Promise.all([
-    getAnalyticsSummary(today),
-    listAllUserRecords(),
+  // Exclude admin accounts from every metric so the team's own usage of the
+  // app (and this dashboard) doesn't inflate the numbers.
+  const allUsers = await listAllUserRecords();
+  const adminIds = new Set(
+    allUsers.filter((u) => isAdminEmail(u.email)).map((u) => u.id)
+  );
+
+  const [analytics, placements, suggestions] = await Promise.all([
+    getAnalyticsSummary(today, adminIds),
     getAllPlacements(today),
-    listSuggestionsWithVotes(voteDate),
+    listSuggestionsWithVotes(voteDate, { excludeUserIds: adminIds }),
   ]);
+
+  const users = allUsers.filter((u) => !adminIds.has(u.id));
+  const visiblePlacements = placements.filter((p) => !adminIds.has(p.userId));
+  const visibleSuggestions = suggestions.filter(
+    (s) => !adminIds.has(s.authorId)
+  );
 
   const totalUsers = users.length;
   const newUsersToday = users.filter((u) => createdOn(u.createdAt, today)).length;
-  const placementRate = totalUsers > 0 ? placements.length / totalUsers : 0;
-  const totalVotes = suggestions.reduce((sum, s) => sum + s.voteCount, 0);
+  const placementRate =
+    totalUsers > 0 ? visiblePlacements.length / totalUsers : 0;
+  const totalVotes = visibleSuggestions.reduce((sum, s) => sum + s.voteCount, 0);
   const avgActiveToday =
     analytics.today.activeUsers > 0
       ? analytics.today.activeMs / analytics.today.activeUsers
@@ -88,12 +101,12 @@ export default async function AdminPage() {
           />
           <Metric
             label="Placements today"
-            value={formatNumber(placements.length)}
+            value={formatNumber(visiblePlacements.length)}
             detail={`${formatPercent(placementRate)} of users`}
           />
           <Metric
             label="Vote suggestions"
-            value={formatNumber(suggestions.length)}
+            value={formatNumber(visibleSuggestions.length)}
             detail={`${formatNumber(totalVotes)} current votes`}
           />
           <Metric
