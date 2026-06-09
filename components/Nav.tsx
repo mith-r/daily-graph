@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { logout } from "@/app/actions/auth";
 import { countIncomingRequests } from "@/lib/users";
 import { computeStreak, listUserDates } from "@/lib/placements";
 import { todayKey } from "@/lib/date";
 import { NavLink } from "@/components/NavLink";
+import { UserMenu } from "@/components/UserMenu";
 import type { PublicUser } from "@/lib/types";
 
 export async function Nav({ me }: { me: PublicUser }) {
@@ -29,7 +29,6 @@ export async function Nav({ me }: { me: PublicUser }) {
       <NavLink href="/vote">Vote</NavLink>
       <NavLink href="/history">History</NavLink>
       <NavLink href="/team">Team</NavLink>
-      <NavLink href="/settings">Settings</NavLink>
     </>
   );
 
@@ -57,12 +56,7 @@ export async function Nav({ me }: { me: PublicUser }) {
                 <span className="font-medium tabular-nums">{streak}</span>
               </span>
             )}
-            <span className="hidden sm:inline text-white/60">{me.displayName}</span>
-            <form action={logout}>
-              <button className="text-white/60 hover:text-white transition">
-                Log out
-              </button>
-            </form>
+            <UserMenu displayName={me.displayName} />
           </div>
         </div>
         <div className="mt-3 flex sm:hidden items-center justify-around gap-2">

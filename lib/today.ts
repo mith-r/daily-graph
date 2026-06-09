@@ -5,7 +5,7 @@ import {
 } from "./placements";
 import { getCelebrityPlacements } from "./celebrities";
 import { getMyNudgesOnFriends, getNudgesOn } from "./nudges";
-import { getFriendIds } from "./users";
+import { getFriendIds, getUserAvatars } from "./users";
 import { getTodaysPrompt } from "./prompts";
 import type { PlacementWithNudge, PublicUser, TodayResponse } from "./types";
 
@@ -39,10 +39,24 @@ export async function buildTodayResponse(
     nudgesOnMe = all_nudges.filter((n) => friendIds.has(n.nudgerUserId));
   }
 
+  // Join each placement to its owner's designed face (if any) so the graph can
+  // render an avatar in place of the dot. Populated here at read time only —
+  // never written back into the placements hash. Celebrities are intentionally
+  // left out (they keep their gold dots).
+  const avatarIds = [
+    ...(mine ? [mine.userId] : []),
+    ...others.map((p) => p.userId),
+  ];
+  const avatars = await getUserAvatars(avatarIds);
+  const myPlacement = mine
+    ? { ...mine, avatar: avatars.get(mine.userId) ?? null }
+    : null;
+  others = others.map((p) => ({ ...p, avatar: avatars.get(p.userId) ?? null }));
+
   return {
     date,
     prompt: await getTodaysPrompt(date),
-    myPlacement: mine,
+    myPlacement,
     others,
     nudgesOnMe,
     heatmap: buildHeatmap(all.filter((p) => p.userId !== me.id)),

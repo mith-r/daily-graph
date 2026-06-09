@@ -1,7 +1,9 @@
 "use client";
 
+import { Avatar } from "@/components/Avatar";
 import { colorFor, toPct } from "@/lib/graph";
 import { useLongPress } from "@/lib/useLongPress";
+import type { AvatarConfig } from "@/lib/types";
 
 type Props = {
   x: number; // -1..1
@@ -13,6 +15,10 @@ type Props = {
   color?: string;
   isMe?: boolean;
   isCelebrity?: boolean;
+  // The owner's designed face. When present (and not a celebrity), the dot is
+  // replaced by this avatar wrapped in the identity-colored ring. Absent →
+  // falls back to the plain colored dot.
+  avatar?: AvatarConfig | null;
   onLongPressStart?: (clientX: number, clientY: number) => void;
   beingNudged?: boolean;
 };
@@ -29,6 +35,7 @@ export function Dot({
   color: colorProp,
   isMe,
   isCelebrity,
+  avatar,
   onLongPressStart,
   beingNudged,
 }: Props) {
@@ -40,6 +47,9 @@ export function Dot({
       ? CELEB_GOLD
       : colorProp ?? colorFor(userId);
   const interactive = !!onLongPressStart;
+  // Celebrities keep their gold dots; everyone else who has designed a face
+  // shows it. Without a face we fall back to the plain colored dot.
+  const face = !isCelebrity && avatar ? avatar : null;
 
   const handlers = useLongPress((e) => {
     onLongPressStart?.(e.clientX, e.clientY);
@@ -51,22 +61,38 @@ export function Dot({
       style={{ left, top }}
     >
       <div className="relative">
-        {/* Visible dot. Stays small visually; the hit area below is what's
+        {/* Visible marker. Stays small visually; the hit area below is what's
             actually pressed. */}
-        <div
-          className={`rounded-full transition-transform duration-150 ${
-            isMe
-              ? "w-4 h-4 ring-2 ring-white/80"
-              : isCelebrity
-                ? "w-3.5 h-3.5 ring-2 ring-amber-300/70"
-                : "w-3 h-3"
-          } ${
-            beingNudged
-              ? "scale-[1.6] ring-2 ring-white shadow-lg"
-              : ""
-          }`}
-          style={{ backgroundColor: color, boxShadow: `0 0 12px ${color}` }}
-        />
+        {face ? (
+          <div
+            className={`rounded-full transition-transform duration-150 ${
+              beingNudged ? "scale-[1.25]" : ""
+            }`}
+            style={{
+              // Identity-colored ring (white for me) + the usual soft glow, so
+              // the face still reads with each person's color and nudge lines
+              // visually match. Brightens to white while being nudged.
+              boxShadow: beingNudged
+                ? `0 0 0 2px #ffffff, 0 0 14px ${color}`
+                : `0 0 0 2px ${color}, 0 0 12px ${color}`,
+            }}
+          >
+            <Avatar config={face} size={isMe ? 16 : 13} />
+          </div>
+        ) : (
+          <div
+            className={`rounded-full transition-transform duration-150 ${
+              isMe
+                ? "w-4 h-4 ring-2 ring-white/80"
+                : isCelebrity
+                  ? "w-3.5 h-3.5 ring-2 ring-amber-300/70"
+                  : "w-3 h-3"
+            } ${
+              beingNudged ? "scale-[1.6] ring-2 ring-white shadow-lg" : ""
+            }`}
+            style={{ backgroundColor: color, boxShadow: `0 0 12px ${color}` }}
+          />
+        )}
         {/* 44px invisible hit area centered on the dot. Absolute positioning
             so it doesn't push the label down. Only present for interactive
             (friend) dots. */}

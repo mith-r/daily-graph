@@ -372,6 +372,7 @@ export function HomeClient({ me, initial }: Props) {
               label={p.displayName}
               userId={p.userId}
               color={colorOf(p.userId)}
+              avatar={p.avatar}
               onLongPressStart={(cx, cy) => handleLongPress(p.userId, cx, cy)}
               beingNudged={nudging?.targetUserId === p.userId}
             />
@@ -420,6 +421,7 @@ export function HomeClient({ me, initial }: Props) {
             y={data.myPlacement.y}
             label={data.myPlacement.displayName}
             userId={me.id}
+            avatar={data.myPlacement.avatar}
             isMe
           />
         )}

@@ -3,7 +3,6 @@ import { getRedis } from "./redis";
 import { setPlacement } from "./placements";
 import { setNudge } from "./nudges";
 import { ensureDebugUser } from "./users";
-import { DEBUG_USER } from "./debug";
 import { todayKey } from "./date";
 import type { User } from "./types";
 

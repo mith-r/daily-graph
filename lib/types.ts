@@ -6,12 +6,32 @@ export type Prompt = {
   yTop: string;
 };
 
+// A user's hand-designed "bitmoji"-style face. Each facial feature is a preset
+// id (validated against the catalog in lib/avatar.ts); skin/bg/hair carry hex
+// colors. Stored as a small JSON blob on the user's Redis record.
+export type AvatarConfig = {
+  skin: string; // hex #rrggbb
+  bg: string; // hex #rrggbb (circle background)
+  hair: string; // style id, e.g. "short" | "bun" | "none"
+  hairColor: string; // hex #rrggbb
+  brows: string; // id
+  eyes: string; // id
+  mouth: string; // id
+  facialHair: string; // id (incl. "none")
+  glasses: string; // id (incl. "none")
+  hat: string; // id (incl. "none")
+};
+
 export type Placement = {
   userId: string;
   displayName: string;
   x: number; // -1..1
   y: number; // -1..1
   createdAt: number;
+  // Populated at response-build time (lib/today.ts) so the graph can render a
+  // face in place of the dot. NOT persisted into the placements hash — the
+  // stored Placement never carries it; it's joined in from the user record.
+  avatar?: AvatarConfig | null;
 };
 
 export type Nudge = {
@@ -51,6 +71,7 @@ export type User = {
   displayName: string;
   passwordHash: string;
   createdAt: number;
+  avatar?: AvatarConfig; // the user's designed face, if they've made one
 };
 
 // Shape exposed to clients — strips secrets.
