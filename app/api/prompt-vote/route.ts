@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { isAdminUser } from "@/lib/admin";
+import { recordVote } from "@/lib/analytics";
 import { getCurrentUser } from "@/lib/dal";
 import {
   clearVote,
@@ -55,6 +57,11 @@ export async function POST(req: Request) {
       const result = await setVote(targetDate, me.id, suggestionId);
       if (!result.ok) {
         return NextResponse.json({ error: result.error }, { status: 400 });
+      }
+      if (!isAdminUser(me)) {
+        await recordVote().catch((err) => {
+          console.error("analytics vote counter failed:", err);
+        });
       }
     }
     const [suggestions, myVote] = await Promise.all([

@@ -41,9 +41,12 @@ export type Nudge = {
   createdAt: number;
 };
 
-// A friend's placement plus my nudge of them (if I've made one today).
+// A friend's placement plus my nudge of them (if I've made one today), and the
+// nudges my other friends have placed on them — surfaced when you focus this
+// friend to show "who moved them".
 export type PlacementWithNudge = Placement & {
   myNudge?: { dx: number; dy: number };
+  nudgesFromFriends?: Nudge[]; // nudges on this friend from my other placed friends
 };
 
 export type HeatmapData = {
@@ -111,6 +114,10 @@ export type PromptSuggestion = {
   yBottom: string;
   yTop: string;
   createdAt: number;
+  // True when this suggestion was carried over from a previous round's
+  // un-chosen prompts. Used to show a "held over" tag and to ensure a prompt
+  // only ever rolls over once.
+  rolledOver?: boolean;
 };
 
 export type PromptSuggestionWithVotes = PromptSuggestion & {

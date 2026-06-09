@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { isAdminUser } from "@/lib/admin";
+import { recordPlacement } from "@/lib/analytics";
 import { getPlacement, setPlacement } from "@/lib/placements";
 import { todayKey } from "@/lib/date";
 import { getCurrentUser } from "@/lib/dal";
@@ -44,9 +46,14 @@ export async function POST(req: Request) {
         x,
         y,
         createdAt: Date.now(),
-      };
+    };
     if (!existing) {
       await setPlacement(date, placement);
+      if (!isAdminUser(me)) {
+        await recordPlacement(date).catch((err) => {
+          console.error("analytics placement counter failed:", err);
+        });
+      }
     }
 
     const resp = await buildTodayResponse(me, date);

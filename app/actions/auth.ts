@@ -1,6 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isAdminEmail } from "@/lib/admin";
+import { recordSignup } from "@/lib/analytics";
 import { createSession, deleteSession } from "@/lib/session";
 import { createUser, getUserByEmail, verifyPassword } from "@/lib/users";
 import { LoginSchema, SignupSchema } from "@/lib/validation";
@@ -36,6 +38,11 @@ export async function signup(
     return { message: result.error };
   }
 
+  if (!isAdminEmail(parsed.data.email)) {
+    await recordSignup().catch((err) => {
+      console.error("analytics signup counter failed:", err);
+    });
+  }
   await createSession(result.id);
   redirect("/");
 }

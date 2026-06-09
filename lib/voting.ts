@@ -1,6 +1,6 @@
 import "server-only";
 import { getRedis } from "./redis";
-import { tomorrowKey } from "./date";
+import { addDays, tomorrowKey } from "./date";
 import type {
   Prompt,
   PromptSuggestion,
@@ -16,6 +16,23 @@ const suggestionVotesKey = (targetDate: string, suggestionId: string) =>
 const userVoteKey = (targetDate: string, userId: string) =>
   `prompt_user_vote:${targetDate}:${userId}`;
 const winnerKey = (targetDate: string) => `prompt_winner:${targetDate}`;
+// Guards the once-per-day rollover of un-chosen suggestions (independent of the
+// winner key, so it still fires on days where nobody voted and no winner is set).
+const rolledKey = (targetDate: string) => `prompt_rolled:${targetDate}`;
+
+// Case-insensitive identity of a suggestion's four axes — mirrors the duplicate
+// check in addSuggestion, used to avoid rolling a prompt into a round that
+// already contains the same one.
+function sigKey(s: {
+  xLeft: string;
+  xRight: string;
+  yBottom: string;
+  yTop: string;
+}): string {
+  return [s.xLeft, s.xRight, s.yBottom, s.yTop]
+    .map((x) => x.toLowerCase())
+    .join("|");
+}
 
 export function openRoundDate(): string {
   return tomorrowKey();
@@ -57,7 +74,8 @@ export function validateSuggestion(
 }
 
 export async function listSuggestionsWithVotes(
-  targetDate: string
+  targetDate: string,
+  opts?: { excludeUserIds?: ReadonlySet<string> }
 ): Promise<PromptSuggestionWithVotes[]> {
   const redis = getRedis();
   const raw = await redis.hgetall<Record<string, PromptSuggestion>>(
@@ -66,8 +84,21 @@ export async function listSuggestionsWithVotes(
   if (!raw) return [];
   const suggestions = Object.values(raw);
   if (suggestions.length === 0) return [];
+  // When excludeUserIds is given (the admin dashboard), drop those voters from
+  // the tally; otherwise SCARD is enough. Gameplay callers pass nothing, so
+  // winner selection still counts every vote.
+  const exclude = opts?.excludeUserIds;
   const counts = await Promise.all(
-    suggestions.map((s) => redis.scard(suggestionVotesKey(targetDate, s.id)))
+    suggestions.map(async (s) => {
+      const key = suggestionVotesKey(targetDate, s.id);
+      if (!exclude || exclude.size === 0) {
+        return redis.scard(key);
+      }
+      const voters = (await redis.smembers(key)) as string[];
+      let count = 0;
+      for (const id of voters) if (!exclude.has(id)) count++;
+      return count;
+    })
   );
   const withVotes: PromptSuggestionWithVotes[] = suggestions.map((s, i) => ({
     ...s,
@@ -180,17 +211,81 @@ export async function closeRound(targetDate: string): Promise<Prompt | null> {
 
   const ranked = await listSuggestionsWithVotes(targetDate);
   const top = ranked.find((s) => s.voteCount > 0);
-  if (!top) return null;
 
-  const prompt: Prompt = {
-    id: `vote-${targetDate}-${top.id.slice(0, 8)}`,
-    xLeft: top.xLeft,
-    xRight: top.xRight,
-    yBottom: top.yBottom,
-    yTop: top.yTop,
-  };
-  const set = await redis.set(winnerKey(targetDate), prompt, { nx: true });
-  if (set === "OK") return prompt;
-  // Lost the race; return whoever won.
-  return (await redis.get<Prompt>(winnerKey(targetDate))) ?? null;
+  let winner: Prompt | null = null;
+  if (top) {
+    const prompt: Prompt = {
+      id: `vote-${targetDate}-${top.id.slice(0, 8)}`,
+      xLeft: top.xLeft,
+      xRight: top.xRight,
+      yBottom: top.yBottom,
+      yTop: top.yTop,
+    };
+    const set = await redis.set(winnerKey(targetDate), prompt, { nx: true });
+    // If we lost the race, fall back to whoever won.
+    winner =
+      set === "OK"
+        ? prompt
+        : (await redis.get<Prompt>(winnerKey(targetDate))) ?? null;
+  }
+
+  // Roll un-chosen suggestions into the next open round, exactly once. The nx
+  // guard is independent of the winner key so this still runs on days where
+  // nobody voted (in which case every suggestion is a loser).
+  const firstClose = await redis.set(rolledKey(targetDate), "1", {
+    nx: true,
+    ex: ROUND_TTL_SECONDS,
+  });
+  if (firstClose === "OK") {
+    await rolloverUnchosen(targetDate, ranked, top?.id ?? null);
+  }
+
+  return winner;
+}
+
+// Copy a round's un-chosen suggestions into the next day's round so they get one
+// more shot. Votes are not carried over (the new round starts fresh), and a
+// suggestion that was already a rollover is dropped rather than rolled again.
+async function rolloverUnchosen(
+  fromDate: string,
+  ranked: PromptSuggestionWithVotes[],
+  winnerId: string | null
+): Promise<void> {
+  const candidates = ranked.filter(
+    (s) => s.id !== winnerId && !s.rolledOver
+  );
+  if (candidates.length === 0) return;
+
+  const redis = getRedis();
+  const nextDate = addDays(fromDate, 1);
+  const existing = await redis.hgetall<Record<string, PromptSuggestion>>(
+    suggestionsKey(nextDate)
+  );
+  const seen = new Set(
+    existing ? Object.values(existing).map(sigKey) : []
+  );
+
+  const toAdd: Record<string, PromptSuggestion> = {};
+  for (const s of candidates) {
+    const key = sigKey(s);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    toAdd[s.id] = {
+      id: s.id,
+      targetDate: nextDate,
+      authorId: s.authorId,
+      authorDisplayName: s.authorDisplayName,
+      xLeft: s.xLeft,
+      xRight: s.xRight,
+      yBottom: s.yBottom,
+      yTop: s.yTop,
+      createdAt: s.createdAt,
+      rolledOver: true,
+    };
+  }
+  if (Object.keys(toAdd).length === 0) return;
+
+  const key = suggestionsKey(nextDate);
+  await redis.hset(key, toAdd);
+  await redis.expire(key, ROUND_TTL_SECONDS);
 }

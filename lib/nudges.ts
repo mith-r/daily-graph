@@ -40,6 +40,27 @@ export async function getNudgesOn(
   return Object.values(raw);
 }
 
+// For each target, return all nudges placed on them, keyed by targetId. Batched
+// so building the response only costs one round of parallel reads.
+export async function getNudgesOnMany(
+  date: string,
+  targetIds: string[]
+): Promise<Map<string, Nudge[]>> {
+  const result = new Map<string, Nudge[]>();
+  if (targetIds.length === 0) return result;
+  const redis = getRedis();
+  const raws = await Promise.all(
+    targetIds.map((tid) =>
+      redis.hgetall<Record<string, Nudge>>(nudgeKey(date, tid))
+    )
+  );
+  targetIds.forEach((tid, i) => {
+    const raw = raws[i];
+    result.set(tid, raw ? Object.values(raw) : []);
+  });
+  return result;
+}
+
 // For each friend in friendIds, return my nudge of them (if any) keyed by friendId.
 export async function getMyNudgesOnFriends(
   date: string,

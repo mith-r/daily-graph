@@ -228,6 +228,17 @@ export async function listAllUsers(): Promise<FriendSummary[]> {
   return loadSummaries(ids);
 }
 
+export async function listAllUserRecords(): Promise<User[]> {
+  const redis = getRedis();
+  let ids = await redis.smembers(ALL_USERS_KEY);
+  if (ids.length === 0) {
+    ids = await backfillAllUsers();
+  }
+  if (ids.length === 0) return [];
+  const users = await Promise.all(ids.map((id) => redis.get<User>(userKey(id))));
+  return users.filter((u): u is User => !!u);
+}
+
 async function backfillAllUsers(): Promise<string[]> {
   const redis = getRedis();
   const ids: string[] = [];

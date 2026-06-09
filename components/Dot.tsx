@@ -20,12 +20,25 @@ type Props = {
   // falls back to the plain colored dot.
   avatar?: AvatarConfig | null;
   onLongPressStart?: (clientX: number, clientY: number) => void;
+  onTap?: () => void;
   beingNudged?: boolean;
+  // Something else is focused, so this dot fades back.
+  dimmed?: boolean;
+  // This dot is the current focus target.
+  focused?: boolean;
 };
 
 // Gold accent shared by all celebrity dots so they read as a distinct class,
 // not as friends. Matches the heatmap's warm tone (rgba(255, 220, 90)).
 const CELEB_GOLD = "#ffdc5a";
+
+// A label renders below its dot by default. Flip it ABOVE only in the two
+// narrow zones where "below" looks wrong:
+//   • Just above the center x-axis: a below-label crosses the axis line into
+//     the busy center. Flipping up makes labels splay away from the axis.
+const LABEL_FLIP_ABOVE_AXIS = 0.12; // y in (0, 0.12]  → flip up
+//   • Near the bottom edge: a below-label spills outside the box and clips.
+const LABEL_FLIP_NEAR_BOTTOM = -0.85; // y <= -0.85    → flip up
 
 export function Dot({
   x,
@@ -37,27 +50,40 @@ export function Dot({
   isCelebrity,
   avatar,
   onLongPressStart,
+  onTap,
   beingNudged,
+  dimmed,
+  focused,
 }: Props) {
   const left = `${toPct(x)}%`;
   const top = `${toPct(y, true)}%`;
+  // Flip the label above the dot when rendering it below would cross the center
+  // x-axis or spill past the bottom edge. Stays absolutely positioned either
+  // way, so it adds zero wrapper height (keeps the dot centered on its coord).
+  const labelAbove =
+    (y > 0 && y <= LABEL_FLIP_ABOVE_AXIS) || y <= LABEL_FLIP_NEAR_BOTTOM;
   const color = isMe
     ? "white"
     : isCelebrity
       ? CELEB_GOLD
       : colorProp ?? colorFor(userId);
-  const interactive = !!onLongPressStart;
+  const interactive = !!onLongPressStart || !!onTap;
   // Celebrities keep their gold dots; everyone else who has designed a face
   // shows it. Without a face we fall back to the plain colored dot.
   const face = !isCelebrity && avatar ? avatar : null;
 
-  const handlers = useLongPress((e) => {
-    onLongPressStart?.(e.clientX, e.clientY);
-  });
+  const handlers = useLongPress(
+    onLongPressStart
+      ? (e) => onLongPressStart(e.clientX, e.clientY)
+      : undefined,
+    { onTap }
+  );
 
   return (
     <div
-      className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center animate-in fade-in duration-500"
+      className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center animate-in fade-in duration-500 transition-opacity ${
+        dimmed && !focused ? "opacity-25" : "opacity-100"
+      }`}
       style={{ left, top }}
     >
       <div className="relative">
@@ -106,18 +132,22 @@ export function Dot({
               WebkitUserSelect: "none",
               cursor: beingNudged ? "grabbing" : "grab",
             }}
+            // Stop the tap from bubbling to the canvas background handler,
+            // which would immediately clear the focus we're setting.
+            onClick={(e) => e.stopPropagation()}
             {...handlers}
           />
         )}
       </div>
-      {/* Label is absolutely positioned below the dot so it doesn't add to the
-          wrapper's height — otherwise -translate-y-1/2 would center the
-          dot+label box and push the dot above its true coordinate, making the
-          nudge lines stop short of the dot. */}
+      {/* Label is absolutely positioned (below the dot by default, above it
+          when labelAbove) so it doesn't add to the wrapper's height —
+          otherwise -translate-y-1/2 would center the dot+label box and push
+          the dot off its true coordinate, making the nudge lines stop short
+          of the dot. */}
       <div
-        className={`absolute top-full left-1/2 -translate-x-1/2 mt-1 text-center text-xs max-w-[5rem] truncate sm:max-w-none sm:whitespace-nowrap select-none pointer-events-none ${
-          isCelebrity ? "text-amber-200/90" : "text-white/80"
-        }`}
+        className={`absolute left-1/2 -translate-x-1/2 text-center text-xs max-w-[5rem] truncate sm:max-w-none sm:whitespace-nowrap select-none pointer-events-none ${
+          labelAbove ? "bottom-full mb-1" : "top-full mt-1"
+        } ${isCelebrity ? "text-amber-200/90" : "text-white/80"}`}
       >
         {isMe ? `${label} (you)` : isCelebrity ? `✨ ${label}` : label}
       </div>

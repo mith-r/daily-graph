@@ -33,6 +33,9 @@ export function HomeClient({ me, initial }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("friends");
   const [nudging, setNudging] = useState<Nudging | null>(null);
+  // Tap-to-focus: a friend's userId isolates that friend's lines; me.id
+  // isolates all incoming nudges ("who moved me"); null shows everything.
+  const [focusedId, setFocusedId] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dataRef = useRef(data);
@@ -49,6 +52,20 @@ export function HomeClient({ me, initial }: Props) {
   useEffect(() => {
     nudgingRef.current = nudging;
   }, [nudging]);
+
+  // Effective focus, derived rather than stored: if the focused friend drops
+  // out of the response (e.g. across a poll) the focus reads as cleared without
+  // a setState-in-effect. Focusing my own dot (me.id) always persists.
+  const effectiveFocusedId = useMemo(() => {
+    if (focusedId == null || focusedId === me.id) return focusedId;
+    return data.others.some((p) => p.userId === focusedId) ? focusedId : null;
+  }, [focusedId, data.others, me.id]);
+
+  // Switching modes clears any focus so it can't leak into "everyone".
+  const changeMode = useCallback((m: Mode) => {
+    setMode(m);
+    setFocusedId(null);
+  }, []);
 
   // Apply any in-flight optimistic nudges on top of a server response so a
   // response that was generated before another nudge was processed doesn't
@@ -225,6 +242,9 @@ export function HomeClient({ me, initial }: Props) {
 
   const handleLongPress = useCallback(
     (targetUserId: string, clientX: number, clientY: number) => {
+      // A nudge is "where I moved others" — clear any focus so the live drag
+      // renders in the default view instead of fighting the focused set.
+      setFocusedId(null);
       // Compute initial dx/dy from the long-press location relative to the
       // target's actual position, so the drag starts at the finger.
       if (!canvasRef.current) {
@@ -283,33 +303,121 @@ export function HomeClient({ me, initial }: Props) {
       .filter(<T,>(n: T | null): n is T => n !== null);
   }, [data.others, nudging]);
 
-  const lines = useMemo<NudgeLine[]>(() => {
-    const out: NudgeLine[] = [];
-    for (const n of myNudgeMarkers) {
-      const isLive = nudging?.targetUserId === n.friendId;
-      out.push({
-        fromX: n.baseX,
-        fromY: n.baseY,
-        toX: n.baseX + n.dx,
-        toY: n.baseY + n.dy,
-        color: "white",
-        opacity: isLive ? 0.7 : 0.4,
-      });
-    }
-    if (data.myPlacement) {
-      for (const nudge of data.nudgesOnMe) {
-        out.push({
-          fromX: data.myPlacement.x,
-          fromY: data.myPlacement.y,
-          toX: data.myPlacement.x + nudge.dx,
-          toY: data.myPlacement.y + nudge.dy,
-          color: colorOf(nudge.nudgerUserId),
-          opacity: 0.4,
+  const friendById = useMemo(
+    () => new Map(data.others.map((p) => [p.userId, p])),
+    [data.others]
+  );
+
+  // The nudge lines + endpoint markers to draw, as an exact set chosen by the
+  // current focus state:
+  //   no focus  → where I moved others (my outgoing nudges)
+  //   focus me  → who moved me (incoming nudges on me)
+  //   focus X   → who moved X (every nudge targeting friend X: mine + friends')
+  const { lines, markers } = useMemo(() => {
+    const lines: NudgeLine[] = [];
+    // My own nudge markers are white to match my white outgoing lines; markers
+    // for other nudgers carry that nudger's set-aware color.
+    const markers: {
+      key: string;
+      x: number;
+      y: number;
+      nudgerUserId: string;
+      color?: string;
+      focused?: boolean;
+    }[] = [];
+    const focus = effectiveFocusedId;
+
+    if (focus == null) {
+      // Default: where I moved others (saved nudges + any live drag).
+      for (const n of myNudgeMarkers) {
+        const isLive = nudging?.targetUserId === n.friendId;
+        lines.push({
+          id: `out-${n.friendId}`,
+          fromX: n.baseX,
+          fromY: n.baseY,
+          toX: n.baseX + n.dx,
+          toY: n.baseY + n.dy,
+          color: "white",
+          opacity: isLive ? 0.7 : 0.4,
+        });
+        markers.push({
+          key: `mine-${n.friendId}`,
+          x: n.baseX + n.dx,
+          y: n.baseY + n.dy,
+          nudgerUserId: me.id,
+          color: "white",
         });
       }
+    } else if (focus === me.id) {
+      // Who moved me.
+      if (data.myPlacement) {
+        for (const nudge of data.nudgesOnMe) {
+          lines.push({
+            id: `in-${nudge.nudgerUserId}`,
+            fromX: data.myPlacement.x,
+            fromY: data.myPlacement.y,
+            toX: data.myPlacement.x + nudge.dx,
+            toY: data.myPlacement.y + nudge.dy,
+            color: colorOf(nudge.nudgerUserId),
+            opacity: 0.4,
+            focused: true,
+          });
+          markers.push({
+            key: `onme-${nudge.nudgerUserId}`,
+            x: data.myPlacement.x + nudge.dx,
+            y: data.myPlacement.y + nudge.dy,
+            nudgerUserId: nudge.nudgerUserId,
+            color: colorOf(nudge.nudgerUserId),
+            focused: true,
+          });
+        }
+      }
+    } else {
+      // Who moved friend X: every nudge targeting X, drawn from X's position.
+      const x = friendById.get(focus);
+      if (x) {
+        const targeting: { nudgerUserId: string; dx: number; dy: number }[] = [];
+        if (x.myNudge) {
+          targeting.push({ nudgerUserId: me.id, ...x.myNudge });
+        }
+        for (const n of x.nudgesFromFriends ?? []) {
+          targeting.push({ nudgerUserId: n.nudgerUserId, dx: n.dx, dy: n.dy });
+        }
+        for (const n of targeting) {
+          const isMine = n.nudgerUserId === me.id;
+          lines.push({
+            id: `to-${x.userId}-${n.nudgerUserId}`,
+            fromX: x.x,
+            fromY: x.y,
+            toX: x.x + n.dx,
+            toY: x.y + n.dy,
+            color: isMine ? "white" : colorOf(n.nudgerUserId),
+            opacity: 0.4,
+            focused: true,
+          });
+          markers.push({
+            key: `to-${x.userId}-${n.nudgerUserId}`,
+            x: x.x + n.dx,
+            y: x.y + n.dy,
+            nudgerUserId: n.nudgerUserId,
+            color: isMine ? "white" : colorOf(n.nudgerUserId),
+            focused: true,
+          });
+        }
+      }
     }
-    return out;
-  }, [myNudgeMarkers, nudging, data.myPlacement, data.nudgesOnMe, colorOf]);
+
+    return { lines, markers };
+  }, [
+    effectiveFocusedId,
+    myNudgeMarkers,
+    nudging,
+    data.myPlacement,
+    data.nudgesOnMe,
+    friendById,
+    colorOf,
+    me.id,
+  ]);
 
   const regression = useMemo(() => {
     if (!placed) return null;
@@ -342,7 +450,7 @@ export function HomeClient({ me, initial }: Props) {
 
       {placed && (
         <div className="flex justify-center mb-6">
-          <ModeToggle mode={mode} onChange={setMode} />
+          <ModeToggle mode={mode} onChange={changeMode} />
         </div>
       )}
 
@@ -355,6 +463,7 @@ export function HomeClient({ me, initial }: Props) {
         onPlace={handlePlace}
         disabled={placed || submitting}
         canvasRef={canvasRef}
+        onBackgroundTap={() => setFocusedId(null)}
       >
         {placed && mode === "everyone" && <Heatmap data={data.heatmap} />}
 
@@ -374,31 +483,27 @@ export function HomeClient({ me, initial }: Props) {
               color={colorOf(p.userId)}
               avatar={p.avatar}
               onLongPressStart={(cx, cy) => handleLongPress(p.userId, cx, cy)}
+              onTap={() =>
+                setFocusedId((cur) => (cur === p.userId ? null : p.userId))
+              }
               beingNudged={nudging?.targetUserId === p.userId}
+              dimmed={
+                effectiveFocusedId != null && effectiveFocusedId !== p.userId
+              }
+              focused={effectiveFocusedId === p.userId}
             />
           ))}
 
         {placed &&
           mode === "friends" &&
-          myNudgeMarkers.map((n) => (
+          markers.map((m) => (
             <NudgeMarker
-              key={`mine-${n.friendId}`}
-              x={n.baseX + n.dx}
-              y={n.baseY + n.dy}
-              nudgerUserId={me.id}
-            />
-          ))}
-
-        {placed &&
-          mode === "friends" &&
-          data.myPlacement &&
-          data.nudgesOnMe.map((nudge) => (
-            <NudgeMarker
-              key={`onme-${nudge.nudgerUserId}`}
-              x={data.myPlacement!.x + nudge.dx}
-              y={data.myPlacement!.y + nudge.dy}
-              nudgerUserId={nudge.nudgerUserId}
-              color={colorOf(nudge.nudgerUserId)}
+              key={m.key}
+              x={m.x}
+              y={m.y}
+              nudgerUserId={m.nudgerUserId}
+              color={m.color}
+              focused={m.focused}
             />
           ))}
 
@@ -423,6 +528,13 @@ export function HomeClient({ me, initial }: Props) {
             userId={me.id}
             avatar={data.myPlacement.avatar}
             isMe
+            onTap={
+              mode === "friends"
+                ? () => setFocusedId((cur) => (cur === me.id ? null : me.id))
+                : undefined
+            }
+            dimmed={effectiveFocusedId != null && effectiveFocusedId !== me.id}
+            focused={effectiveFocusedId === me.id}
           />
         )}
       </GraphCanvas>
@@ -438,7 +550,8 @@ export function HomeClient({ me, initial }: Props) {
 
       {placed && mode === "friends" && data.others.length > 0 && (
         <p className="mt-6 text-center text-xs text-white/40">
-          Hold a friend&apos;s dot and drag to nudge them.
+          Hold a friend&apos;s dot and drag to nudge them. Tap any dot to see who
+          moved it — tap yourself to see who moved you.
         </p>
       )}
 
