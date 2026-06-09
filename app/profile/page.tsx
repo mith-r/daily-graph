@@ -1,8 +1,9 @@
 import { requireUser } from "@/lib/dal";
 import { getUserById } from "@/lib/users";
-import { DEFAULT_AVATAR } from "@/lib/avatar";
+import { DEFAULT_AVATAR, clampAvatarScale } from "@/lib/avatar";
 import { Nav } from "@/components/Nav";
 import { AvatarEditor } from "./AvatarEditor";
+import { AvatarSizeSetting } from "./AvatarSizeSetting";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,8 @@ export default async function ProfilePage() {
   // to seed the editor with the saved face. Fall back to a neutral default.
   const user = await getUserById(me.id);
   const current = user?.avatar ?? DEFAULT_AVATAR;
+  // Normalize a possibly-absent/out-of-range stored scale to a usable value.
+  const currentScale = clampAvatarScale(user?.avatarScale);
 
   return (
     <main className="min-h-screen bg-navy text-white flex flex-col">
@@ -25,6 +28,8 @@ export default async function ProfilePage() {
         </section>
 
         <AvatarEditor initial={current} seed={me.id} />
+
+        <AvatarSizeSetting initial={currentScale} preview={current} />
       </div>
     </main>
   );

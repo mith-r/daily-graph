@@ -186,6 +186,27 @@ export const DEFAULT_AVATAR: AvatarConfig = {
   hat: "none",
 };
 
+// --- Graph avatar size ---
+//
+// A *viewer* preference (not how others see you): scales every face on YOUR
+// view of the graph so people who find it cluttered can shrink them and others
+// can go bigger. Stored as a continuous multiplier on the user record and
+// multiplied into Dot's base pixel sizes. 1 is the historical size, so existing
+// views are unchanged unless someone opts in. Bounds double as the size slider's
+// min/max in the profile editor.
+export const AVATAR_SCALE_MIN = 0.8;
+export const AVATAR_SCALE_MAX = 1.6;
+export const AVATAR_SCALE_STEP = 0.05;
+export const DEFAULT_AVATAR_SCALE = 1;
+
+// Coerce a stored/incoming value into a usable multiplier: non-numbers (absent
+// or stale preference) fall back to the default, and anything out of range is
+// clamped to the slider bounds so a crafted POST can't blow dots up arbitrarily.
+export function clampAvatarScale(n: number | undefined | null): number {
+  if (typeof n !== "number" || !Number.isFinite(n)) return DEFAULT_AVATAR_SCALE;
+  return Math.min(AVATAR_SCALE_MAX, Math.max(AVATAR_SCALE_MIN, n));
+}
+
 function pick<T>(rand: () => number, list: readonly T[]): T {
   return list[Math.floor(rand() * list.length)];
 }

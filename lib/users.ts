@@ -21,6 +21,7 @@ function toPublic(u: User): PublicUser {
     email: u.email,
     username: u.username,
     displayName: u.displayName,
+    avatarScale: u.avatarScale,
   };
 }
 
@@ -135,6 +136,20 @@ export async function updateAvatar(
   const user = await getUserById(userId);
   if (!user) return { error: "User not found." };
   user.avatar = config;
+  await redis.set(userKey(userId), user);
+  return { ok: true };
+}
+
+// Persist the viewer's graph-density preference (a size multiplier). The caller
+// clamps it to the valid range before it gets here.
+export async function updateAvatarScale(
+  userId: string,
+  scale: number
+): Promise<{ ok: true } | { error: string }> {
+  const redis = getRedis();
+  const user = await getUserById(userId);
+  if (!user) return { error: "User not found." };
+  user.avatarScale = scale;
   await redis.set(userKey(userId), user);
   return { ok: true };
 }
