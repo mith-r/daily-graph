@@ -47,6 +47,7 @@ export default async function FriendsPage() {
         </section>
 
         <FriendsBrowser
+          meId={me.id}
           friends={friends.map(toPerson)}
           incoming={incoming.map(toPerson)}
           outgoing={outgoing.map(toPerson)}
