@@ -1,0 +1,31 @@
+import { requireUser } from "@/lib/dal";
+import { getUserById } from "@/lib/users";
+import { DEFAULT_AVATAR } from "@/lib/avatar";
+import { Nav } from "@/components/Nav";
+import { AvatarEditor } from "./AvatarEditor";
+
+export const dynamic = "force-dynamic";
+
+export default async function ProfilePage() {
+  const me = await requireUser();
+  // requireUser() returns the public shape (no avatar), so load the full record
+  // to seed the editor with the saved face. Fall back to a neutral default.
+  const user = await getUserById(me.id);
+  const current = user?.avatar ?? DEFAULT_AVATAR;
+
+  return (
+    <main className="min-h-screen bg-navy text-white flex flex-col">
+      <Nav me={me} />
+      <div className="flex-1 w-full max-w-xl mx-auto px-4 sm:px-6 py-12 space-y-10">
+        <section>
+          <h1 className="text-2xl font-semibold">Profile</h1>
+          <p className="mt-1 text-sm text-white/60">
+            Design the face that shows up in place of your dot on the graph.
+          </p>
+        </section>
+
+        <AvatarEditor initial={current} seed={me.id} />
+      </div>
+    </main>
+  );
+}

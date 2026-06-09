@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/dal";
-import { updateDisplayName, updateUsername } from "@/lib/users";
+import { updateAvatar, updateDisplayName, updateUsername } from "@/lib/users";
 import {
+  AvatarConfigSchema,
   UpdateDisplayNameSchema,
   UpdateUsernameSchema,
 } from "@/lib/validation";
@@ -52,5 +53,32 @@ export async function updateUsernameAction(
   revalidatePath("/");
   revalidatePath("/settings");
   revalidatePath("/friends");
+  return { success: true };
+}
+
+export async function updateAvatarAction(
+  _state: ProfileFormState,
+  formData: FormData
+): Promise<ProfileFormState> {
+  const me = await requireUser();
+  const raw = formData.get("avatar");
+  if (typeof raw !== "string") return { error: "Missing avatar data." };
+
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    return { error: "Invalid avatar data." };
+  }
+
+  const parsed = AvatarConfigSchema.safeParse(json);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid avatar." };
+  }
+
+  const result = await updateAvatar(me.id, parsed.data);
+  if ("error" in result) return { error: result.error };
+  revalidatePath("/");
+  revalidatePath("/profile");
   return { success: true };
 }

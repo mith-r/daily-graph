@@ -2,7 +2,7 @@ import "server-only";
 import bcrypt from "bcryptjs";
 import { getRedis } from "./redis";
 import { DEBUG_USER } from "./debug";
-import type { FriendSummary, PublicUser, User } from "./types";
+import type { AvatarConfig, FriendSummary, PublicUser, User } from "./types";
 
 const BCRYPT_ROUNDS = 10;
 
@@ -125,6 +125,34 @@ export async function updateDisplayName(
   user.displayName = displayName.trim();
   await redis.set(userKey(userId), user);
   return { ok: true };
+}
+
+export async function updateAvatar(
+  userId: string,
+  config: AvatarConfig
+): Promise<{ ok: true } | { error: string }> {
+  const redis = getRedis();
+  const user = await getUserById(userId);
+  if (!user) return { error: "User not found." };
+  user.avatar = config;
+  await redis.set(userKey(userId), user);
+  return { ok: true };
+}
+
+// Batch-load avatars for a set of user ids (e.g. the friends on today's graph)
+// in a single round trip. This runs on the hot /api/today poll path (refreshed
+// every few seconds), so MGET keeps it to one request regardless of friend
+// count. Order is preserved; returns undefined for ids whose user is missing or
+// hasn't designed a face.
+export async function getUserAvatars(
+  ids: string[]
+): Promise<Map<string, AvatarConfig | undefined>> {
+  const map = new Map<string, AvatarConfig | undefined>();
+  if (ids.length === 0) return map;
+  const redis = getRedis();
+  const users = await redis.mget<(User | null)[]>(ids.map((id) => userKey(id)));
+  ids.forEach((id, i) => map.set(id, users[i]?.avatar ?? undefined));
+  return map;
 }
 
 export async function updateUsername(

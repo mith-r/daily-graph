@@ -36,6 +36,18 @@ class MemoryRedis {
     return store.has(key) ? (clone(store.get(key)) as T) : null;
   }
 
+  // Accepts either mget(a, b, c) or mget([a, b, c]), like @upstash/redis.
+  async mget<T = unknown>(
+    ...keysOrArray: [string[]] | string[]
+  ): Promise<(T | null)[]> {
+    const keys = (
+      keysOrArray.length === 1 && Array.isArray(keysOrArray[0])
+        ? keysOrArray[0]
+        : keysOrArray
+    ) as string[];
+    return keys.map((k) => (store.has(k) ? (clone(store.get(k)) as T) : null));
+  }
+
   async set(
     key: string,
     value: unknown,
