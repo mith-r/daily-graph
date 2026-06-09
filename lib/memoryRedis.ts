@@ -86,6 +86,14 @@ class MemoryRedis {
     return added;
   }
 
+  async hincrby(key: string, field: string, increment: number): Promise<number> {
+    const h = this.hash(key, true)!;
+    const current = Number(h.get(field) ?? 0);
+    const next = current + increment;
+    h.set(field, next);
+    return next;
+  }
+
   async hdel(key: string, ...fields: string[]): Promise<number> {
     const h = this.hash(key);
     if (!h) return 0;

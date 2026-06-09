@@ -315,8 +315,8 @@ export function HomeClient({ me, initial }: Props) {
   //   focus X   → who moved X (every nudge targeting friend X: mine + friends')
   const { lines, markers } = useMemo(() => {
     const lines: NudgeLine[] = [];
-    // color omitted → NudgeMarker falls back to colorFor(nudgerUserId); used
-    // for my own markers so they match the existing "my" hue.
+    // My own nudge markers are white to match my white outgoing lines; markers
+    // for other nudgers carry that nudger's set-aware color.
     const markers: {
       key: string;
       x: number;
@@ -345,6 +345,7 @@ export function HomeClient({ me, initial }: Props) {
           x: n.baseX + n.dx,
           y: n.baseY + n.dy,
           nudgerUserId: me.id,
+          color: "white",
         });
       }
     } else if (focus === me.id) {
@@ -399,7 +400,7 @@ export function HomeClient({ me, initial }: Props) {
             x: x.x + n.dx,
             y: x.y + n.dy,
             nudgerUserId: n.nudgerUserId,
-            color: isMine ? undefined : colorOf(n.nudgerUserId),
+            color: isMine ? "white" : colorOf(n.nudgerUserId),
             focused: true,
           });
         }
