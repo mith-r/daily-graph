@@ -46,3 +46,13 @@ next-env.d.ts
 
 # Nested Conductor base clone (backs ~/conductor/workspaces/daily-graph/*) — never commit it
 /daily-graph/
+
+# Capacitor iOS — generated/derived files (the native shell itself IS committed)
+ios/App/Pods
+ios/App/build
+ios/App/output
+ios/App/App/public
+ios/App/App/capacitor.config.json
+ios/DerivedData
+ios/capacitor-cordova-ios-plugins
+**/xcuserdata/
