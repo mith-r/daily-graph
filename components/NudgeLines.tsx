@@ -2,16 +2,13 @@
 
 export type NudgeLine = {
   id: string; // stable key, e.g. `out-${friendId}` / `in-${nudgerId}`
-  friendId: string; // the friend this line involves (outgoing: target; incoming: nudger)
-  kind: "incoming" | "outgoing";
   fromX: number; // -1..1
   fromY: number;
   toX: number;
   toY: number;
   color: string;
   opacity?: number;
-  dimmed?: boolean; // something else is focused
-  focused?: boolean; // this line is part of the current focus
+  focused?: boolean; // emphasize (brighter + thicker) — set while a dot is focused
 };
 
 type Props = {
@@ -31,11 +28,7 @@ export function NudgeLines({ lines }: Props) {
     >
       {lines.map((l) => {
         const base = l.opacity ?? 0.4;
-        const opacity = l.dimmed
-          ? base * 0.2
-          : l.focused
-            ? Math.min(1, base + 0.4)
-            : base;
+        const opacity = l.focused ? Math.min(1, base + 0.4) : base;
         return (
           <line
             key={l.id}
