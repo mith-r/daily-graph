@@ -4,11 +4,15 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { FriendSummary } from "@/lib/types";
 import { FriendActions } from "./FriendActions";
 import { QuickAddButton } from "./QuickAddButton";
+import { FriendGroupsManager } from "./FriendGroupsManager";
 
 // Only non-sensitive fields cross to the client — never the user's email.
 type Person = Pick<FriendSummary, "id" | "username" | "displayName">;
 
+type Tab = "people" | "groups";
+
 type Props = {
+  meId: string;
   friends: Person[];
   incoming: Person[];
   outgoing: Person[];
@@ -34,11 +38,82 @@ function PersonRow({
 }
 
 export function FriendsBrowser({
+  meId,
   friends,
   incoming,
   outgoing,
   discover,
 }: Props) {
+  const [tab, setTab] = useState<Tab>("people");
+
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-center sm:justify-start">
+        <TabBar tab={tab} onChange={setTab} />
+      </div>
+
+      {tab === "groups" ? (
+        <FriendGroupsManager meId={meId} friends={friends} />
+      ) : (
+        <PeopleTab
+          friends={friends}
+          incoming={incoming}
+          outgoing={outgoing}
+          discover={discover}
+        />
+      )}
+    </div>
+  );
+}
+
+function TabBar({ tab, onChange }: { tab: Tab; onChange: (tab: Tab) => void }) {
+  return (
+    <div className="inline-flex rounded-full border border-white/10 bg-white/[0.02] p-0.5 text-xs">
+      <TabButton active={tab === "people"} onClick={() => onChange("people")}>
+        People
+      </TabButton>
+      <TabButton active={tab === "groups"} onClick={() => onChange("groups")}>
+        Groups
+      </TabButton>
+    </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-4 py-1.5 transition ${
+        active
+          ? "bg-white font-medium text-neutral-900"
+          : "text-white/60 hover:text-white"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function PeopleTab({
+  friends,
+  incoming,
+  outgoing,
+  discover,
+}: {
+  friends: Person[];
+  incoming: Person[];
+  outgoing: Person[];
+  discover: Person[];
+}) {
   const [query, setQuery] = useState("");
 
   const q = query.trim().toLowerCase();
