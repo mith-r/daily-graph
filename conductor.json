@@ -1,0 +1,7 @@
+{
+  "scripts": {
+    "setup": "npm ci --no-audit --no-fund",
+    "run": "npm run dev -- -H localhost -p 3000"
+  },
+  "runScriptMode": "nonconcurrent"
+}
