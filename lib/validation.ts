@@ -57,6 +57,13 @@ const HexColor = z
   .string()
   .regex(/^#[0-9a-fA-F]{6}$/, "Colors must be #rrggbb hex.");
 
+// Graph-density preference: a finite numeric multiplier. The action clamps it
+// into the allowed range (lib/avatar.ts); here we just reject non-numbers so a
+// crafted POST can't smuggle NaN/Infinity or a string through.
+export const AvatarScaleSchema = z.object({
+  scale: z.number().finite(),
+});
+
 export const AvatarConfigSchema = z.object({
   skin: HexColor,
   bg: HexColor,

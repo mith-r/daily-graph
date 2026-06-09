@@ -19,6 +19,9 @@ type Props = {
   // replaced by this avatar wrapped in the identity-colored ring. Absent →
   // falls back to the plain colored dot.
   avatar?: AvatarConfig | null;
+  // Viewer's graph-density multiplier (1 = the historical size). Scales both the
+  // avatar and the plain-dot fallback so the whole graph grows/shrinks together.
+  scale?: number;
   onLongPressStart?: (clientX: number, clientY: number) => void;
   onTap?: () => void;
   beingNudged?: boolean;
@@ -49,6 +52,7 @@ export function Dot({
   isMe,
   isCelebrity,
   avatar,
+  scale = 1,
   onLongPressStart,
   onTap,
   beingNudged,
@@ -71,6 +75,12 @@ export function Dot({
   // Celebrities keep their gold dots; everyone else who has designed a face
   // shows it. Without a face we fall back to the plain colored dot.
   const face = !isCelebrity && avatar ? avatar : null;
+
+  // Base pixel sizes (scale 1 = the original look), grown by the viewer's
+  // density preference. Faces are a touch bigger than plain dots; "me" is
+  // bigger than friends so your own dot stands out.
+  const avatarSize = Math.round((isMe ? 16 : 13) * scale);
+  const dotPx = Math.round((isMe ? 16 : isCelebrity ? 14 : 12) * scale);
 
   const handlers = useLongPress(
     onLongPressStart
@@ -103,20 +113,25 @@ export function Dot({
                 : `0 0 0 2px ${color}, 0 0 12px ${color}`,
             }}
           >
-            <Avatar config={face} size={isMe ? 16 : 13} />
+            <Avatar config={face} size={avatarSize} />
           </div>
         ) : (
           <div
             className={`rounded-full transition-transform duration-150 ${
               isMe
-                ? "w-4 h-4 ring-2 ring-white/80"
+                ? "ring-2 ring-white/80"
                 : isCelebrity
-                  ? "w-3.5 h-3.5 ring-2 ring-amber-300/70"
-                  : "w-3 h-3"
+                  ? "ring-2 ring-amber-300/70"
+                  : ""
             } ${
               beingNudged ? "scale-[1.6] ring-2 ring-white shadow-lg" : ""
             }`}
-            style={{ backgroundColor: color, boxShadow: `0 0 12px ${color}` }}
+            style={{
+              width: dotPx,
+              height: dotPx,
+              backgroundColor: color,
+              boxShadow: `0 0 12px ${color}`,
+            }}
           />
         )}
         {/* 44px invisible hit area centered on the dot. Absolute positioning

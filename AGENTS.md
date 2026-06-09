@@ -4,19 +4,26 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# Always end with a dev server to check the work
+# ⚠️ MANDATORY: end EVERY request with a running dev server
 
-At the end of **every** request in this project, leave the user a running local
-dev server and give them the URL as the last thing in your reply, so they can
-check the work out.
+This is a hard requirement, not a suggestion. **Every single request you finish
+in this project must end with a running local dev server, and the very last
+thing in your reply must be that server's URL** (e.g. `http://localhost:3005`),
+so the user can immediately click in and check the work.
 
-- Start it with the local-dev flags (see `README.md` → "Local development
-  flags"): `USE_IN_MEMORY_REDIS=1 DEBUG_BYPASS_AUTH=1 npx next dev -p <port>`.
+Do this on every request — features, bug fixes, refactors, config-only edits,
+even questions. If you touched anything in the repo, leave a server running and
+end on the URL. Never end a reply without it.
+
+How to start it:
+
+- Use the local-dev flags (see `README.md` → "Local development flags"):
+  `USE_IN_MEMORY_REDIS=1 DEBUG_BYPASS_AUTH=1 npx next dev -p <port>`.
   `SESSION_SECRET` is already in `.env.local`. These flags are **local-only** —
   never set them in preview/production.
 - Multiple Conductor workspaces run in parallel and may already hold a port
   (e.g. 3000). Pick a free port rather than killing another workspace's server,
   and never stop a `next-server` whose working directory is a different
   workspace.
-- Run it in the background, confirm it has compiled and is ready, then give the
-  user the full URL (e.g. `http://localhost:3005`).
+- Run it in the background, wait until it has compiled and is listening, then
+  give the user the full URL as the closing line of your reply.
