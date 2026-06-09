@@ -75,6 +75,10 @@ export type User = {
   passwordHash: string;
   createdAt: number;
   avatar?: AvatarConfig; // the user's designed face, if they've made one
+  // How big faces render on THIS user's view of the graph — a multiplier on the
+  // dot's base size (see lib/avatar.ts). A personal display preference, not how
+  // others see them. Absent → the default size.
+  avatarScale?: number;
 };
 
 // Shape exposed to clients — strips secrets.
@@ -83,6 +87,10 @@ export type PublicUser = {
   email: string;
   username: string;
   displayName: string;
+  // The current user's graph-density preference (a size multiplier), carried so
+  // the graph can scale every dot to their chosen size. PublicUser is only ever
+  // the viewer themselves in this app, so this is always "my" setting.
+  avatarScale?: number;
 };
 
 export type FriendSummary = {

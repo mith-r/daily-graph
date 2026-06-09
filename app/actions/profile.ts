@@ -2,9 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/dal";
-import { updateAvatar, updateDisplayName, updateUsername } from "@/lib/users";
+import {
+  updateAvatar,
+  updateAvatarScale,
+  updateDisplayName,
+  updateUsername,
+} from "@/lib/users";
+import { clampAvatarScale } from "@/lib/avatar";
 import {
   AvatarConfigSchema,
+  AvatarScaleSchema,
   UpdateDisplayNameSchema,
   UpdateUsernameSchema,
 } from "@/lib/validation";
@@ -77,6 +84,27 @@ export async function updateAvatarAction(
   }
 
   const result = await updateAvatar(me.id, parsed.data);
+  if ("error" in result) return { error: result.error };
+  revalidatePath("/");
+  revalidatePath("/profile");
+  return { success: true };
+}
+
+// Save the viewer's graph-density preference. Called directly (not via a form)
+// from the size slider when a drag settles. Clamps to the valid range so an
+// out-of-bounds value is corrected rather than rejected.
+export async function setAvatarScaleAction(
+  scale: number
+): Promise<ProfileFormState> {
+  const me = await requireUser();
+  const parsed = AvatarScaleSchema.safeParse({ scale });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid size." };
+  }
+  const result = await updateAvatarScale(
+    me.id,
+    clampAvatarScale(parsed.data.scale)
+  );
   if ("error" in result) return { error: result.error };
   revalidatePath("/");
   revalidatePath("/profile");

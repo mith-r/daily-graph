@@ -8,6 +8,7 @@ import { NudgeMarker } from "@/components/NudgeMarker";
 import { NudgeLines, type NudgeLine } from "@/components/NudgeLines";
 import { PromptHeader } from "@/components/PromptHeader";
 import { RegressionLine } from "@/components/RegressionLine";
+import { clampAvatarScale } from "@/lib/avatar";
 import { assignColors, colorFor } from "@/lib/graph";
 import { principalAxisLine, type Point } from "@/lib/regression";
 import type { PlacementWithNudge, PublicUser, TodayResponse } from "@/lib/types";
@@ -360,6 +361,9 @@ export function HomeClient({ me, initial }: Props) {
 
   const placed = !!data.myPlacement;
 
+  // My chosen graph density, applied to every dot in my view.
+  const avatarScale = clampAvatarScale(me.avatarScale);
+
   // Assign colors across the whole visible peer set (friend dots + anyone who
   // nudged me) so they're spread apart and two friends never read as the same
   // color. A given user keeps one consistent color across their dot, line, and
@@ -690,6 +694,7 @@ export function HomeClient({ me, initial }: Props) {
               userId={p.userId}
               color={colorOf(p.userId)}
               avatar={p.avatar}
+              scale={avatarScale}
               onLongPressStart={(cx, cy) => handleLongPress(p.userId, cx, cy)}
               onTap={() =>
                 setFocusedId((cur) => (cur === p.userId ? null : p.userId))
@@ -724,6 +729,7 @@ export function HomeClient({ me, initial }: Props) {
               y={c.y}
               label={c.displayName}
               userId={c.userId}
+              scale={avatarScale}
               isCelebrity
             />
           ))}
@@ -735,6 +741,7 @@ export function HomeClient({ me, initial }: Props) {
             label={data.myPlacement.displayName}
             userId={me.id}
             avatar={data.myPlacement.avatar}
+            scale={avatarScale}
             isMe
             onTap={
               mode === "friends"
