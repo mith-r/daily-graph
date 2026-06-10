@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { FriendSummary } from "@/lib/types";
+import { ReportButton } from "@/components/ReportDialog";
 
 // Only non-sensitive fields cross to the client — never the user's email.
 export type Person = Pick<FriendSummary, "id" | "username" | "displayName">;
@@ -28,7 +29,10 @@ export function PersonRow({
         <div className="text-xs text-white/50">@{user.username}</div>
         {subtitle && <div className="text-xs text-white/40">{subtitle}</div>}
       </div>
-      {action}
+      <div className="flex items-center gap-2">
+        {action}
+        <ReportButton reportedUserId={user.id} reportedName={user.displayName} />
+      </div>
     </li>
   );
 }

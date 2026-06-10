@@ -50,7 +50,8 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
   const [mode, setMode] = useState<Mode>("friends");
   const [nudging, setNudging] = useState<Nudging | null>(null);
   // Tap-to-focus: a friend's userId isolates that friend's lines; me.id
-  // isolates all incoming nudges ("who moved me"); null shows everything.
+  // isolates + brightens incoming nudges ("who moved me"); null shows my
+  // outgoing lines plus a faint preview of the incoming ones.
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [friendQuery, setFriendQuery] = useState("");
   const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(
@@ -487,8 +488,9 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
 
   // The nudge lines + endpoint markers to draw, as an exact set chosen by the
   // current focus state — restricted throughout to the visible friend set:
-  //   no focus  → where I moved others (my outgoing nudges)
-  //   focus me  → who moved me (incoming nudges from visible friends)
+  //   no focus  → where I moved others (my outgoing nudges), plus a faint
+  //               preview of who moved me so incoming nudges are discoverable
+  //   focus me  → who moved me, brightened (incoming nudges from visible friends)
   //   focus X   → who moved X (mine + visible friends' nudges targeting X)
   const { lines, markers } = useMemo(() => {
     const lines: NudgeLine[] = [];
@@ -501,6 +503,7 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
       nudgerUserId: string;
       color?: string;
       focused?: boolean;
+      faint?: boolean;
     }[] = [];
     const focus = effectiveFocusedId;
 
@@ -525,8 +528,13 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
           color: "white",
         });
       }
-    } else if (focus === me.id) {
-      // Who moved me — only nudges from currently-visible friends.
+    }
+
+    if (focus == null || focus === me.id) {
+      // Who moved me — only nudges from currently-visible friends. Tapping my
+      // dot draws them at full strength; in the default view they render as a
+      // faint preview so incoming nudges are visible without tapping anything.
+      const focused = focus === me.id;
       if (data.myPlacement) {
         for (const nudge of data.nudgesOnMe) {
           if (!visibleFriendIds.has(nudge.nudgerUserId)) continue;
@@ -537,8 +545,8 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
             toX: data.myPlacement.x + nudge.dx,
             toY: data.myPlacement.y + nudge.dy,
             color: colorOf(nudge.nudgerUserId),
-            opacity: 0.4,
-            focused: true,
+            opacity: focused ? 0.4 : 0.2,
+            focused,
           });
           markers.push({
             key: `onme-${nudge.nudgerUserId}`,
@@ -546,7 +554,8 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
             y: data.myPlacement.y + nudge.dy,
             nudgerUserId: nudge.nudgerUserId,
             color: colorOf(nudge.nudgerUserId),
-            focused: true,
+            focused,
+            faint: !focused,
           });
         }
       }
@@ -717,6 +726,7 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
               nudgerUserId={m.nudgerUserId}
               color={m.color}
               focused={m.focused}
+              faint={m.faint}
             />
           ))}
 
@@ -767,7 +777,7 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
         <p className="mt-6 text-center text-xs text-white/40">
           {visibleFriends.length === 0
             ? "No friends match the current filters."
-            : "Hold a friend's dot and drag to nudge them. Tap any dot to see who moved it — tap yourself to see who moved you."}
+            : "Hold a friend's dot and drag to nudge them. Faint colored lines show who moved you — tap any dot to see who moved it, or tap yourself to highlight who moved you."}
         </p>
       )}
 

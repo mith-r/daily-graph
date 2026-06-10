@@ -79,6 +79,11 @@ export type User = {
   // dot's base size (see lib/avatar.ts). A personal display preference, not how
   // others see them. Absent → the default size.
   avatarScale?: number;
+  // Moderation: set when a mod bans the account. A banned user is locked out
+  // everywhere (see lib/dal.ts). Server-only — never copied onto PublicUser.
+  bannedAt?: number;
+  bannedReason?: string;
+  bannedBy?: string; // id of the admin who applied the ban
 };
 
 // Shape exposed to clients — strips secrets.
@@ -136,4 +141,29 @@ export type VoteState = {
   targetDate: string;
   suggestions: PromptSuggestionWithVotes[];
   myVote: string | null;
+};
+
+// --- Moderation ---
+
+// Why a user was reported. Mirrored by ReportSchema in lib/validation.ts.
+export type ReportReason =
+  | "inappropriate_suggestion"
+  | "impersonation"
+  | "harassment"
+  | "spam"
+  | "other";
+
+export type ReportStatus = "open" | "actioned" | "dismissed";
+
+export type Report = {
+  id: string;
+  reporterId: string;
+  reportedUserId: string;
+  reason: ReportReason;
+  details?: string; // free-text from the reporter
+  context?: string; // what was reported, e.g. the suggestion's text
+  createdAt: number;
+  status: ReportStatus;
+  resolvedBy?: string; // id of the admin who actioned/dismissed it
+  resolvedAt?: number;
 };

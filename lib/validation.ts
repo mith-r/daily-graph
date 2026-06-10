@@ -77,5 +77,22 @@ export const AvatarConfigSchema = z.object({
   hat: z.enum(HAT_IDS),
 });
 
+// A user-submitted report against another account. reason mirrors ReportReason
+// in lib/types.ts. details/context are free-text and length-capped so a crafted
+// POST can't store an unbounded blob.
+export const ReportSchema = z.object({
+  reportedUserId: z.string().trim().min(1, "Missing user to report."),
+  reason: z.enum([
+    "inappropriate_suggestion",
+    "impersonation",
+    "harassment",
+    "spam",
+    "other",
+  ]),
+  details: z.string().trim().max(500, "Keep details under 500 characters.").optional(),
+  context: z.string().trim().max(300).optional(),
+});
+
 export type SignupInput = z.infer<typeof SignupSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
+export type ReportInput = z.infer<typeof ReportSchema>;
