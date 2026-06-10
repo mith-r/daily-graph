@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { todayKey } from "@/lib/date";
-import { getCurrentUser } from "@/lib/dal";
+import { getVerifiedUser } from "@/lib/dal";
 import { getFriendIds } from "@/lib/users";
 import { getPlacement } from "@/lib/placements";
 import { removeNudge, setNudge } from "@/lib/nudges";
@@ -14,7 +14,7 @@ function parseFiniteNumber(v: unknown): number | null {
 }
 
 export async function POST(req: Request) {
-  const me = await getCurrentUser();
+  const me = await getVerifiedUser();
   if (!me) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const me = await getCurrentUser();
+  const me = await getVerifiedUser();
   if (!me) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

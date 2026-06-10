@@ -2,7 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { decryptSession } from "@/lib/session";
 import { DEBUG_AUTH_ENABLED } from "@/lib/debug";
 
-const PUBLIC_PATHS = new Set(["/login", "/signup"]);
+// NOTE: /verify-email is deliberately NOT public — it needs a session, and the
+// verification check itself lives in the DAL (this proxy can run outside the
+// main runtime, where the in-memory Redis stub isn't available).
+const PUBLIC_PATHS = new Set(["/login", "/signup", "/forgot-password"]);
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

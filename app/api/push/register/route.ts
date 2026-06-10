@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/dal";
+import { getVerifiedUser } from "@/lib/dal";
 import { addPushToken, removePushToken } from "@/lib/pushTokens";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ const TokenSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const me = await getCurrentUser();
+  const me = await getVerifiedUser();
   if (!me) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const me = await getCurrentUser();
+  const me = await getVerifiedUser();
   if (!me) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

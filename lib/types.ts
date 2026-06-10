@@ -74,6 +74,12 @@ export type User = {
   displayName: string;
   passwordHash: string;
   createdAt: number;
+  // When the user proved ownership of their email (6-digit code). Absent =
+  // unverified — which also gates accounts created before this feature shipped.
+  emailVerifiedAt?: number;
+  // Set on password reset. Sessions issued before this moment are rejected
+  // (see lib/dal.ts), revoking stolen/old sessions after a reset.
+  passwordChangedAt?: number;
   avatar?: AvatarConfig; // the user's designed face, if they've made one
   // How big faces render on THIS user's view of the graph — a multiplier on the
   // dot's base size (see lib/avatar.ts). A personal display preference, not how
@@ -96,6 +102,8 @@ export type PublicUser = {
   // the graph can scale every dot to their chosen size. PublicUser is only ever
   // the viewer themselves in this app, so this is always "my" setting.
   avatarScale?: number;
+  // Mirrors User.emailVerifiedAt so guards can gate unverified accounts.
+  emailVerifiedAt?: number;
 };
 
 export type FriendSummary = {
@@ -115,6 +123,9 @@ export type FriendsState = {
 export type SessionPayload = {
   userId: string;
   expiresAt: number;
+  // JWT `iat` in SECONDS (set by .setIssuedAt() at signing). Used to reject
+  // sessions minted before the user's last password change.
+  issuedAt?: number;
 };
 
 export type PromptSuggestion = {

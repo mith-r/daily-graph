@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/admin";
 import { recordVote } from "@/lib/analytics";
-import { getCurrentUser } from "@/lib/dal";
+import { getVerifiedUser } from "@/lib/dal";
 import {
   clearVote,
   getUserVote,
@@ -14,7 +14,7 @@ import type { VoteState } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const me = await getCurrentUser();
+  const me = await getVerifiedUser();
   if (!me) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
@@ -30,7 +30,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const me = await getCurrentUser();
+  const me = await getVerifiedUser();
   if (!me) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

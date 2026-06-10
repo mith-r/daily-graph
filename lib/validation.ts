@@ -50,6 +50,36 @@ export const LoginSchema = z.object({
   password: z.string().min(1, "Password is required."),
 });
 
+export const VerifyCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Enter the 6-digit code."),
+});
+
+// "Wrong email? Fix it" on the verify screen: the corrected address plus the
+// current password (proof of account ownership).
+export const FixEmailSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email."),
+  password: z.string().min(1, "Password is required."),
+});
+
+export const ForgotPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email."),
+});
+
+export const ResetPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email."),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Enter the 6-digit code."),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters.")
+    .max(200, "Password is too long."),
+});
+
 // Colors are #rrggbb only — a strict hex pattern means a crafted POST can't
 // smuggle arbitrary strings into the SVG. Feature slots are constrained to the
 // known catalog ids (lib/avatar.ts), so unknown ids are rejected outright.

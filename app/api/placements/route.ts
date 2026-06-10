@@ -3,7 +3,7 @@ import { isAdminUser } from "@/lib/admin";
 import { recordPlacement } from "@/lib/analytics";
 import { getPlacement, setPlacement } from "@/lib/placements";
 import { todayKey } from "@/lib/date";
-import { getCurrentUser } from "@/lib/dal";
+import { getVerifiedUser } from "@/lib/dal";
 import { buildTodayResponse } from "@/lib/today";
 import type { Placement } from "@/lib/types";
 
@@ -16,7 +16,7 @@ function clamp(v: unknown): number | null {
 }
 
 export async function POST(req: Request) {
-  const me = await getCurrentUser();
+  const me = await getVerifiedUser();
   if (!me) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
