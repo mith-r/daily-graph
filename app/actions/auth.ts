@@ -3,9 +3,19 @@
 import { redirect } from "next/navigation";
 import { isAdminEmail } from "@/lib/admin";
 import { recordSignup } from "@/lib/analytics";
+import { issueOtp } from "@/lib/otp";
 import { createSession, deleteSession } from "@/lib/session";
 import { createUser, getUserByEmail, verifyPassword } from "@/lib/users";
 import { LoginSchema, SignupSchema } from "@/lib/validation";
+
+// Email a verification code without failing the signup/login on send errors —
+// the verify screen has a Resend button for recovery.
+async function tryIssueVerificationCode(userId: string, email: string) {
+  const issued = await issueOtp({ purpose: "verify-email", userId, email });
+  if ("error" in issued) {
+    console.error(`[auth] verification code send failed: ${issued.error}`);
+  }
+}
 
 export type AuthFormState =
   | {
@@ -44,7 +54,8 @@ export async function signup(
     });
   }
   await createSession(result.id);
-  redirect("/");
+  await tryIssueVerificationCode(result.id, result.email);
+  redirect("/verify-email");
 }
 
 export async function login(
@@ -66,6 +77,12 @@ export async function login(
   if (!ok) return { message: "Invalid email or password." };
 
   await createSession(user.id);
+  // Pre-verification accounts (including ones from before this feature) get
+  // parked on the verify screen with a fresh code.
+  if (!user.emailVerifiedAt) {
+    await tryIssueVerificationCode(user.id, user.email);
+    redirect("/verify-email");
+  }
   redirect("/");
 }
 

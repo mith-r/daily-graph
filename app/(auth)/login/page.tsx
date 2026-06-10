@@ -9,6 +9,11 @@ export default function LoginPage() {
         Welcome back.
       </p>
       <LoginForm />
+      <p className="mt-3 text-center text-sm">
+        <Link href="/forgot-password" className="underline text-white/60 hover:text-white">
+          Forgot password?
+        </Link>
+      </p>
       <p className="mt-6 text-center text-sm text-white/60">
         New here?{" "}
         <Link href="/signup" className="underline text-white">

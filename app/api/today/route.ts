@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { todayKey } from "@/lib/date";
-import { getCurrentUser } from "@/lib/dal";
+import { getVerifiedUser } from "@/lib/dal";
 import { buildTodayResponse } from "@/lib/today";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const me = await getCurrentUser();
+  const me = await getVerifiedUser();
   if (!me) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

@@ -22,6 +22,7 @@ function toPublic(u: User): PublicUser {
     username: u.username,
     displayName: u.displayName,
     avatarScale: u.avatarScale,
+    emailVerifiedAt: u.emailVerifiedAt,
   };
 }
 
@@ -106,6 +107,8 @@ export async function ensureDebugUser(): Promise<User> {
     ...DEBUG_USER,
     passwordHash: "",
     createdAt: Date.now(),
+    // Verified so the bypass user never hits the email-verification gate.
+    emailVerifiedAt: Date.now(),
   };
   await Promise.all([
     redis.set(userKey(user.id), user),
@@ -168,6 +171,58 @@ export async function getUserAvatars(
   const users = await redis.mget<(User | null)[]>(ids.map((id) => userKey(id)));
   ids.forEach((id, i) => map.set(id, users[i]?.avatar ?? undefined));
   return map;
+}
+
+export async function markEmailVerified(
+  userId: string
+): Promise<{ ok: true } | { error: string }> {
+  const redis = getRedis();
+  const user = await getUserById(userId);
+  if (!user) return { error: "User not found." };
+  user.emailVerifiedAt = Date.now();
+  await redis.set(userKey(userId), user);
+  return { ok: true };
+}
+
+// Re-point the account at a new email address (the "wrong email? fix it" flow
+// on the verification screen). Clears emailVerifiedAt — the new address must
+// prove ownership with a fresh code. Mirrors updateUsername's claim-then-free
+// ordering so a concurrent signup can never grab the same address.
+export async function updateEmail(
+  userId: string,
+  newEmail: string
+): Promise<{ ok: true } | { error: string }> {
+  const redis = getRedis();
+  const user = await getUserById(userId);
+  if (!user) return { error: "User not found." };
+  const next = newEmail.trim().toLowerCase();
+  if (next === user.email) return { ok: true };
+
+  const claimed = await redis.set(emailKey(next), userId, { nx: true });
+  if (claimed !== "OK") {
+    return { error: "An account with that email already exists." };
+  }
+
+  const old = user.email;
+  user.email = next;
+  delete user.emailVerifiedAt;
+  await redis.set(userKey(userId), user);
+  await redis.del(emailKey(old));
+  return { ok: true };
+}
+
+export async function updatePassword(
+  userId: string,
+  newPassword: string
+): Promise<{ ok: true } | { error: string }> {
+  const redis = getRedis();
+  const user = await getUserById(userId);
+  if (!user) return { error: "User not found." };
+  user.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  // Revokes every session issued before this moment (see lib/dal.ts).
+  user.passwordChangedAt = Date.now();
+  await redis.set(userKey(userId), user);
+  return { ok: true };
 }
 
 export async function updateUsername(

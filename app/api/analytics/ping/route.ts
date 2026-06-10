@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/dal";
+import { getVerifiedUser } from "@/lib/dal";
 import { isAdminUser } from "@/lib/admin";
 import { recordAnalyticsPing, type AnalyticsEvent } from "@/lib/analytics";
 
@@ -15,7 +15,7 @@ function parseActiveMs(value: unknown): number {
 }
 
 export async function POST(req: Request) {
-  const me = await getCurrentUser();
+  const me = await getVerifiedUser();
   if (!me) {
     return NextResponse.json({ ok: true });
   }

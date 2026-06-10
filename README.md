@@ -54,6 +54,20 @@ When either flag is active the server logs a loud warning at startup, and the
 debug bypass renders a persistent banner in the UI — both as reminders to turn
 them off.
 
+## Email (verification codes & password reset)
+
+Accounts must verify their email with a 6-digit code before using the app, and
+the same mechanism powers the forgot-password flow. Emails are sent through
+[Resend](https://resend.com).
+
+| Env var | Effect | Required in prod? |
+| --- | --- | --- |
+| `RESEND_API_KEY` | Resend API key. **When unset, codes are printed to the server console instead of emailed** — local dev needs zero email setup. | ✅ Yes |
+| `EMAIL_FROM` | Sender for verification/reset emails, e.g. `Daily Graphs <no-reply@yourdomain.com>`. Must be a Resend-verified domain. | ✅ Yes |
+
+Locally, just run the dev command above and watch the terminal for the framed
+`[email] DEV MODE` block containing the code.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More

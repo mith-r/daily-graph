@@ -36,7 +36,10 @@ export async function decryptSession(
     const expiresAt =
       typeof payload.expiresAt === "number" ? payload.expiresAt : null;
     if (!userId || !expiresAt) return null;
-    return { userId, expiresAt };
+    // `iat` (seconds) is set by .setIssuedAt() at signing; surfaced so the DAL
+    // can reject sessions minted before the user's last password change.
+    const issuedAt = typeof payload.iat === "number" ? payload.iat : undefined;
+    return { userId, expiresAt, issuedAt };
   } catch {
     return null;
   }

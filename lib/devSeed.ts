@@ -123,6 +123,8 @@ async function seedUser(
     displayName,
     passwordHash: "",
     createdAt: Date.now(),
+    // Verified so demo users never hit the email-verification gate.
+    emailVerifiedAt: Date.now(),
   };
   await redis.set(`user:${id}`, user);
   await redis.set(`user:email:${user.email}`, id);
