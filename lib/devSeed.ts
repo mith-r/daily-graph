@@ -8,7 +8,7 @@ import { hashString, mulberry32 } from "./rng";
 import type { User } from "./types";
 
 const FRIEND_COUNT = 12;
-const CROWD_COUNT = 20;
+const CROWD_COUNT = 26;
 const INCOMING_NUDGES = 6;
 const OUTGOING_NUDGES = 5;
 // Friend-on-friend nudges so focusing a friend shows "who moved them".
@@ -52,6 +52,10 @@ const DEMO_NAMES = [
   "Rowan",
   "Harper",
   "Sage",
+  "Esme",
+  "Caleb",
+  "Nora",
+  "Dario",
 ] as const;
 
 type XY = { x: number; y: number };
@@ -155,6 +159,20 @@ export async function seedDemoData(): Promise<void> {
     friends.map((friend) => redis.sadd(`user:${friend.id}:friends`, me.id))
   );
 
+  // Crowd↔friend friendships so the Add-friends suggestions have a real
+  // mutual-friend spread to rank: crowd member i shares min(max(i - 6, 0), 12)
+  // friends with the Debug User — some 0-mutual padding, a full 1..12 ladder,
+  // and a cluster of ties at the top.
+  await Promise.all(
+    crowd.flatMap((member, i) => {
+      const shared = friends.slice(0, Math.max(0, Math.min(i - 6, FRIEND_COUNT)));
+      return shared.flatMap((friend) => [
+        redis.sadd(`user:${member.id}:friends`, friend.id),
+        redis.sadd(`user:${friend.id}:friends`, member.id),
+      ]);
+    })
+  );
+
   const date = todayKey();
   const now = Date.now();
   await Promise.all([
@@ -238,6 +256,13 @@ export async function seedDemoData(): Promise<void> {
     ),
     ...requesters.map((user) => redis.sadd(`user:${user.id}:outgoing`, me.id)),
   ]);
+
+  // Pre-ignore one high-mutual non-requester so "hidden from suggestions but
+  // still findable via search" is demoable out of the box.
+  await redis.sadd(
+    `user:${me.id}:ignored-suggestions`,
+    crowd[crowd.length - 1].id
+  );
 
   console.log(`[devSeed] seeded demo data for ${date}`);
 }

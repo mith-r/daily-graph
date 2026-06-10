@@ -13,6 +13,7 @@ const usernameKey = (username: string) =>
 const friendsKey = (id: string) => `user:${id}:friends`;
 const incomingKey = (id: string) => `user:${id}:incoming`;
 const outgoingKey = (id: string) => `user:${id}:outgoing`;
+const ignoredSuggestionsKey = (id: string) => `user:${id}:ignored-suggestions`;
 const ALL_USERS_KEY = "users:all";
 
 function toPublic(u: User): PublicUser {
@@ -278,6 +279,47 @@ export async function getFriendIds(userId: string): Promise<Set<string>> {
 export async function countIncomingRequests(userId: string): Promise<number> {
   const redis = getRedis();
   return redis.scard(incomingKey(userId));
+}
+
+// Suggestions the user has dismissed. Only consulted when building the
+// suggestions list — never blocks requests or search, so an ignored user who
+// sends a request still shows up in Incoming and can still be found by search.
+export async function getIgnoredSuggestionIds(
+  userId: string
+): Promise<Set<string>> {
+  const redis = getRedis();
+  const ids = await redis.smembers(ignoredSuggestionsKey(userId));
+  return new Set(ids);
+}
+
+export async function ignoreSuggestion(
+  userId: string,
+  targetId: string
+): Promise<void> {
+  if (targetId === userId) return;
+  const redis = getRedis();
+  await redis.sadd(ignoredSuggestionsKey(userId), targetId);
+}
+
+// Count |myFriendIds ∩ candidate's friends| for each candidate. The memory dev
+// stub has no SINTER, so the intersection happens in JS; one SMEMBERS per
+// candidate is fine at this scale (switch to SINTERCARD if it ever isn't).
+export async function getMutualFriendCounts(
+  myFriendIds: Set<string>,
+  candidateIds: string[]
+): Promise<Map<string, number>> {
+  const redis = getRedis();
+  const friendLists = await Promise.all(
+    candidateIds.map((id) => redis.smembers(friendsKey(id)))
+  );
+  const counts = new Map<string, number>();
+  candidateIds.forEach((id, i) => {
+    counts.set(
+      id,
+      friendLists[i].filter((fid) => myFriendIds.has(fid)).length
+    );
+  });
+  return counts;
 }
 
 async function loadSummaries(ids: string[]): Promise<FriendSummary[]> {

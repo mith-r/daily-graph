@@ -8,6 +8,8 @@ type Props = {
   nudgerUserId: string;
   dimmed?: boolean;
   focused?: boolean;
+  // Soft endpoint for preview lines (e.g. the default view's incoming nudges).
+  faint?: boolean;
   // Set-aware color from assignColors(); falls back to colorFor(nudgerUserId).
   color?: string;
 };
@@ -18,6 +20,7 @@ export function NudgeMarker({
   nudgerUserId,
   dimmed,
   focused,
+  faint,
   color: colorProp,
 }: Props) {
   const left = `${toPct(x)}%`;
@@ -32,7 +35,7 @@ export function NudgeMarker({
         top,
         backgroundColor: color,
         boxShadow: `0 0 6px ${color}`,
-        opacity: dimmed ? 0.15 : focused ? 1 : 0.75,
+        opacity: dimmed ? 0.15 : focused ? 1 : faint ? 0.45 : 0.75,
       }}
     />
   );

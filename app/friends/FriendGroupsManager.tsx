@@ -1,55 +1,64 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  loadFriendGroups,
-  makeGroupId,
-  saveFriendGroups,
-  type FriendGroup,
-} from "@/lib/friendGroups";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { loadFriendGroups, makeGroupId, type FriendGroup } from "@/lib/friendGroups";
+import { saveFriendGroupsAction } from "@/app/actions/groups";
 import { colorFor } from "@/lib/graph";
 
 // Only non-sensitive fields cross to the client — never the user's email.
 type Person = { id: string; username: string; displayName: string };
 
 // Create / rename / delete friend groups and choose their members over the full
-// friends list. Groups persist in this browser's localStorage (shared with the
-// home graph, which only *applies* them as a filter — see lib/friendGroups).
+// friends list. Group definitions are persisted server-side (so they follow the
+// user across devices); the home graph reads the same server copy to *apply*
+// them as a filter — see lib/friendGroupsStore.
 export function FriendGroupsManager({
   meId,
   friends,
+  initialGroups,
 }: {
   meId: string;
   friends: Person[];
+  initialGroups: FriendGroup[];
 }) {
-  const [groups, setGroups] = useState<FriendGroup[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [groups, setGroups] = useState<FriendGroup[]>(initialGroups);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [query, setQuery] = useState("");
 
+  // One-time migration: if the server has no groups yet but this browser still
+  // holds some from before groups moved server-side, adopt them. The debounced
+  // save effect below then persists them up to the server.
+  const migrated = useRef(false);
   useEffect(() => {
-    // Defer the state writes out of the effect body (and bail if unmounted) so
-    // we don't trigger a cascading render — and so the first paint matches the
-    // server's empty render before localStorage is read.
+    if (migrated.current) return;
+    migrated.current = true;
+    if (initialGroups.length > 0) return;
+    const local = loadFriendGroups(meId);
+    if (local.length === 0) return;
+    // Defer the write out of the effect body so it doesn't cascade-render.
     let cancelled = false;
-    const stored = loadFriendGroups(meId);
     queueMicrotask(() => {
-      if (cancelled) return;
-      setGroups(stored);
-      setLoaded(true);
+      if (!cancelled) setGroups(local);
     });
     return () => {
       cancelled = true;
     };
-  }, [meId]);
+  }, [initialGroups, meId]);
 
-  // Persist on every change once the initial load has happened (so we never
-  // clobber stored groups with the empty initial state).
+  // Persist to the server shortly after edits settle. Skips the initial mount so
+  // we don't immediately re-write the groups we were just handed.
+  const skipSave = useRef(true);
   useEffect(() => {
-    if (!loaded) return;
-    saveFriendGroups(meId, groups);
-  }, [loaded, meId, groups]);
+    if (skipSave.current) {
+      skipSave.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      void saveFriendGroupsAction(groups);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [groups]);
 
   const q = query.trim().toLowerCase();
   const shownFriends = useMemo(() => {
@@ -108,7 +117,7 @@ export function FriendGroupsManager({
         </h2>
         <p className="mt-1 text-xs text-white/50">
           Save sets of friends, then filter your daily graph by a group from the
-          home page. Groups are stored in this browser.
+          home page. Groups sync across your devices.
         </p>
       </section>
 

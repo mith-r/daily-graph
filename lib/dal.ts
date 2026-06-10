@@ -3,8 +3,9 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { readSession } from "./session";
 import { ensureDebugUser, getUserById, toPublic } from "./users";
-import { DEBUG_AUTH_ENABLED } from "./debug";
-import type { PublicUser } from "./types";
+import { DEBUG_AUTH_ENABLED, DEBUG_USER } from "./debug";
+import { isBanned } from "./moderation";
+import type { PublicUser, User } from "./types";
 
 export const getSession = cache(async () => {
   const session = await readSession();
@@ -12,6 +13,14 @@ export const getSession = cache(async () => {
   if (session.expiresAt < Date.now()) return null;
   return session;
 });
+
+// A ban locks the account out everywhere — except keep the Debug User usable in
+// local dev (DEBUG_BYPASS_AUTH), so a test ban can't brick the bypass.
+function isLockedOut(user: User): boolean {
+  return (
+    isBanned(user) && !(DEBUG_AUTH_ENABLED && user.id === DEBUG_USER.id)
+  );
+}
 
 export const getCurrentUser = cache(async (): Promise<PublicUser | null> => {
   const session = await getSession();
@@ -36,6 +45,9 @@ export const getCurrentUser = cache(async (): Promise<PublicUser | null> => {
   ) {
     return DEBUG_AUTH_ENABLED ? toPublic(await ensureDebugUser()) : null;
   }
+  // Banned users resolve to null: API routes hit their existing `!me → 401` and
+  // pages fall through to requireUser's /banned redirect below.
+  if (isLockedOut(user)) return null;
   return toPublic(user);
 });
 
@@ -43,8 +55,15 @@ export const getCurrentUser = cache(async (): Promise<PublicUser | null> => {
 // and its actions should use this; everything else goes through requireUser.
 export async function requireAccount(): Promise<PublicUser> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  return user;
+  if (user) return user;
+  // getCurrentUser returns null for both logged-out and banned users. Send
+  // banned users to /banned (not /login, which would just loop them back in).
+  const session = await getSession();
+  if (session) {
+    const raw = await getUserById(session.userId);
+    if (raw && isLockedOut(raw)) redirect("/banned");
+  }
+  redirect("/login");
 }
 
 export async function requireUser(): Promise<PublicUser> {

@@ -15,15 +15,14 @@ import { principalAxisLine, type Point } from "@/lib/regression";
 import type { PlacementWithNudge, PublicUser, TodayResponse } from "@/lib/types";
 import {
   ALL_FRIENDS_GROUP_ID,
-  friendGroupStorageKey,
   friendSelectionStorageKey,
-  parseFriendGroups,
   type FriendGroup,
 } from "@/lib/friendGroups";
 
 type Props = {
   me: PublicUser;
   initial: TodayResponse;
+  initialGroups: FriendGroup[];
 };
 
 type Mode = "friends" | "everyone";
@@ -44,25 +43,28 @@ function setsEqual(a: Set<string>, b: Set<string>) {
   return true;
 }
 
-export function HomeClient({ me, initial }: Props) {
+export function HomeClient({ me, initial, initialGroups }: Props) {
   const [data, setData] = useState<TodayResponse>(initial);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("friends");
   const [nudging, setNudging] = useState<Nudging | null>(null);
   // Tap-to-focus: a friend's userId isolates that friend's lines; me.id
-  // isolates all incoming nudges ("who moved me"); null shows everything.
+  // isolates + brightens incoming nudges ("who moved me"); null shows my
+  // outgoing lines plus a faint preview of the incoming ones.
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [friendQuery, setFriendQuery] = useState("");
   const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(
     () => new Set(initial.others.map((p) => p.userId))
   );
-  const [friendGroups, setFriendGroups] = useState<FriendGroup[]>([]);
+  // Group definitions come from the server (see lib/friendGroupsStore); this page
+  // only applies them as a filter. They're edited on the Friends page.
+  const friendGroups = initialGroups;
   const [activeGroupId, setActiveGroupId] = useState(ALL_FRIENDS_GROUP_ID);
   const [filtersLoaded, setFiltersLoaded] = useState(false);
   // The filter panel is collapsed by default so it stays out of the way; the
   // user opens it when they want to narrow the graph. Groups are *applied* here
-  // but created/edited over in Friends → Groups.
+  // but created/edited over on the Friends page.
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -102,18 +104,14 @@ export function HomeClient({ me, initial }: Props) {
     friendIdsRef.current = currentIds;
   }, [data.others]);
 
-  // Load saved groups + selection from this browser once on mount.
+  // Load this browser's saved filter *selection* (which friends are toggled on)
+  // once on mount. Group definitions themselves now come from the server.
   useEffect(() => {
     const currentIds = new Set(dataRef.current.others.map((p) => p.userId));
-    let loadedGroups: FriendGroup[] | null = null;
     let loadedSelection: Set<string> | null = null;
     let cancelled = false;
 
     try {
-      loadedGroups = parseFriendGroups(
-        localStorage.getItem(friendGroupStorageKey(me.id))
-      );
-
       const rawSelection = localStorage.getItem(
         friendSelectionStorageKey(me.id)
       );
@@ -133,7 +131,6 @@ export function HomeClient({ me, initial }: Props) {
     } finally {
       queueMicrotask(() => {
         if (cancelled) return;
-        if (loadedGroups) setFriendGroups(loadedGroups);
         if (loadedSelection) setSelectedFriendIds(loadedSelection);
         setFiltersLoaded(true);
       });
@@ -388,7 +385,7 @@ export function HomeClient({ me, initial }: Props) {
   // The roster the filter panel works within: a selected group narrows it to
   // that group's members (intersected with who's placed today); "All friends"
   // is everyone. Non-members never appear here — group membership is edited
-  // only in Friends → Groups, never on this page.
+  // only on the Friends page, never here.
   const groupRoster = useMemo(() => {
     if (activeGroupId === ALL_FRIENDS_GROUP_ID) return data.others;
     const group = friendGroups.find((g) => g.id === activeGroupId);
@@ -491,8 +488,9 @@ export function HomeClient({ me, initial }: Props) {
 
   // The nudge lines + endpoint markers to draw, as an exact set chosen by the
   // current focus state — restricted throughout to the visible friend set:
-  //   no focus  → where I moved others (my outgoing nudges)
-  //   focus me  → who moved me (incoming nudges from visible friends)
+  //   no focus  → where I moved others (my outgoing nudges), plus a faint
+  //               preview of who moved me so incoming nudges are discoverable
+  //   focus me  → who moved me, brightened (incoming nudges from visible friends)
   //   focus X   → who moved X (mine + visible friends' nudges targeting X)
   const { lines, markers } = useMemo(() => {
     const lines: NudgeLine[] = [];
@@ -505,6 +503,7 @@ export function HomeClient({ me, initial }: Props) {
       nudgerUserId: string;
       color?: string;
       focused?: boolean;
+      faint?: boolean;
     }[] = [];
     const focus = effectiveFocusedId;
 
@@ -529,8 +528,13 @@ export function HomeClient({ me, initial }: Props) {
           color: "white",
         });
       }
-    } else if (focus === me.id) {
-      // Who moved me — only nudges from currently-visible friends.
+    }
+
+    if (focus == null || focus === me.id) {
+      // Who moved me — only nudges from currently-visible friends. Tapping my
+      // dot draws them at full strength; in the default view they render as a
+      // faint preview so incoming nudges are visible without tapping anything.
+      const focused = focus === me.id;
       if (data.myPlacement) {
         for (const nudge of data.nudgesOnMe) {
           if (!visibleFriendIds.has(nudge.nudgerUserId)) continue;
@@ -541,8 +545,8 @@ export function HomeClient({ me, initial }: Props) {
             toX: data.myPlacement.x + nudge.dx,
             toY: data.myPlacement.y + nudge.dy,
             color: colorOf(nudge.nudgerUserId),
-            opacity: 0.4,
-            focused: true,
+            opacity: focused ? 0.4 : 0.2,
+            focused,
           });
           markers.push({
             key: `onme-${nudge.nudgerUserId}`,
@@ -550,7 +554,8 @@ export function HomeClient({ me, initial }: Props) {
             y: data.myPlacement.y + nudge.dy,
             nudgerUserId: nudge.nudgerUserId,
             color: colorOf(nudge.nudgerUserId),
-            focused: true,
+            focused,
+            faint: !focused,
           });
         }
       }
@@ -721,6 +726,7 @@ export function HomeClient({ me, initial }: Props) {
               nudgerUserId={m.nudgerUserId}
               color={m.color}
               focused={m.focused}
+              faint={m.faint}
             />
           ))}
 
@@ -761,7 +767,7 @@ export function HomeClient({ me, initial }: Props) {
       {placed && mode === "friends" && data.others.length === 0 && (
         <p className="mt-10 text-center text-sm text-white/50">
           You&apos;re the only one of your friends who&apos;s placed so far.{" "}
-          <a href="/friends" className="underline hover:text-white/80">
+          <a href="/friends/add" className="underline hover:text-white/80">
             Add friends →
           </a>
         </p>
@@ -771,7 +777,7 @@ export function HomeClient({ me, initial }: Props) {
         <p className="mt-6 text-center text-xs text-white/40">
           {visibleFriends.length === 0
             ? "No friends match the current filters."
-            : "Hold a friend's dot and drag to nudge them. Tap any dot to see who moved it — tap yourself to see who moved you."}
+            : "Hold a friend's dot and drag to nudge them. Faint colored lines show who moved you — tap any dot to see who moved it, or tap yourself to highlight who moved you."}
         </p>
       )}
 
@@ -969,12 +975,12 @@ function FriendFilters({
       </div>
 
       <p className="mt-3 text-xs text-white/40">
-        Create and edit groups in{" "}
+        Create and edit groups on{" "}
         <a
           href="/friends"
           className="underline underline-offset-2 hover:text-white/70"
         >
-          Friends → Groups
+          the Friends page
         </a>
         .
       </p>

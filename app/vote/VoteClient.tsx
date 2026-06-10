@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { PromptSuggestionWithVotes, VoteState } from "@/lib/types";
+import { ReportButton } from "@/components/ReportDialog";
 
 type Props = {
   meId: string;
@@ -114,18 +115,28 @@ function SuggestionRow({
           )}
         </div>
       </div>
-      <button
-        onClick={onVote}
-        disabled={pending}
-        aria-pressed={voted}
-        className={`shrink-0 rounded-md px-3 py-1.5 text-sm transition disabled:opacity-40 ${
-          voted
-            ? "bg-white text-neutral-900 font-medium"
-            : "border border-white/20 text-white/80 hover:text-white hover:border-white/40"
-        }`}
-      >
-        {voted ? "Voted" : "Vote"}
-      </button>
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <button
+          onClick={onVote}
+          disabled={pending}
+          aria-pressed={voted}
+          className={`rounded-md px-3 py-1.5 text-sm transition disabled:opacity-40 ${
+            voted
+              ? "bg-white text-neutral-900 font-medium"
+              : "border border-white/20 text-white/80 hover:text-white hover:border-white/40"
+          }`}
+        >
+          {voted ? "Voted" : "Vote"}
+        </button>
+        {!mine && (
+          <ReportButton
+            reportedUserId={suggestion.authorId}
+            reportedName={suggestion.authorDisplayName}
+            defaultReason="inappropriate_suggestion"
+            context={`${suggestion.xLeft} ↔ ${suggestion.xRight} / ${suggestion.yBottom} ↕ ${suggestion.yTop}`}
+          />
+        )}
+      </div>
     </li>
   );
 }
