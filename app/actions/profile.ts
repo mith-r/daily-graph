@@ -39,6 +39,7 @@ export async function updateDisplayNameAction(
   revalidatePath("/");
   revalidatePath("/settings");
   revalidatePath("/friends");
+  revalidatePath("/friends/add");
   return { success: true };
 }
 
@@ -60,6 +61,7 @@ export async function updateUsernameAction(
   revalidatePath("/");
   revalidatePath("/settings");
   revalidatePath("/friends");
+  revalidatePath("/friends/add");
   return { success: true };
 }
 

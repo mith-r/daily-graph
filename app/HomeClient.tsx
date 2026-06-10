@@ -15,15 +15,14 @@ import { principalAxisLine, type Point } from "@/lib/regression";
 import type { PlacementWithNudge, PublicUser, TodayResponse } from "@/lib/types";
 import {
   ALL_FRIENDS_GROUP_ID,
-  friendGroupStorageKey,
   friendSelectionStorageKey,
-  parseFriendGroups,
   type FriendGroup,
 } from "@/lib/friendGroups";
 
 type Props = {
   me: PublicUser;
   initial: TodayResponse;
+  initialGroups: FriendGroup[];
 };
 
 type Mode = "friends" | "everyone";
@@ -44,7 +43,7 @@ function setsEqual(a: Set<string>, b: Set<string>) {
   return true;
 }
 
-export function HomeClient({ me, initial }: Props) {
+export function HomeClient({ me, initial, initialGroups }: Props) {
   const [data, setData] = useState<TodayResponse>(initial);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,12 +56,14 @@ export function HomeClient({ me, initial }: Props) {
   const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(
     () => new Set(initial.others.map((p) => p.userId))
   );
-  const [friendGroups, setFriendGroups] = useState<FriendGroup[]>([]);
+  // Group definitions come from the server (see lib/friendGroupsStore); this page
+  // only applies them as a filter. They're edited on the Friends page.
+  const friendGroups = initialGroups;
   const [activeGroupId, setActiveGroupId] = useState(ALL_FRIENDS_GROUP_ID);
   const [filtersLoaded, setFiltersLoaded] = useState(false);
   // The filter panel is collapsed by default so it stays out of the way; the
   // user opens it when they want to narrow the graph. Groups are *applied* here
-  // but created/edited over in Friends → Groups.
+  // but created/edited over on the Friends page.
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -102,18 +103,14 @@ export function HomeClient({ me, initial }: Props) {
     friendIdsRef.current = currentIds;
   }, [data.others]);
 
-  // Load saved groups + selection from this browser once on mount.
+  // Load this browser's saved filter *selection* (which friends are toggled on)
+  // once on mount. Group definitions themselves now come from the server.
   useEffect(() => {
     const currentIds = new Set(dataRef.current.others.map((p) => p.userId));
-    let loadedGroups: FriendGroup[] | null = null;
     let loadedSelection: Set<string> | null = null;
     let cancelled = false;
 
     try {
-      loadedGroups = parseFriendGroups(
-        localStorage.getItem(friendGroupStorageKey(me.id))
-      );
-
       const rawSelection = localStorage.getItem(
         friendSelectionStorageKey(me.id)
       );
@@ -133,7 +130,6 @@ export function HomeClient({ me, initial }: Props) {
     } finally {
       queueMicrotask(() => {
         if (cancelled) return;
-        if (loadedGroups) setFriendGroups(loadedGroups);
         if (loadedSelection) setSelectedFriendIds(loadedSelection);
         setFiltersLoaded(true);
       });
@@ -388,7 +384,7 @@ export function HomeClient({ me, initial }: Props) {
   // The roster the filter panel works within: a selected group narrows it to
   // that group's members (intersected with who's placed today); "All friends"
   // is everyone. Non-members never appear here — group membership is edited
-  // only in Friends → Groups, never on this page.
+  // only on the Friends page, never here.
   const groupRoster = useMemo(() => {
     if (activeGroupId === ALL_FRIENDS_GROUP_ID) return data.others;
     const group = friendGroups.find((g) => g.id === activeGroupId);
@@ -761,7 +757,7 @@ export function HomeClient({ me, initial }: Props) {
       {placed && mode === "friends" && data.others.length === 0 && (
         <p className="mt-10 text-center text-sm text-white/50">
           You&apos;re the only one of your friends who&apos;s placed so far.{" "}
-          <a href="/friends" className="underline hover:text-white/80">
+          <a href="/friends/add" className="underline hover:text-white/80">
             Add friends →
           </a>
         </p>
@@ -969,12 +965,12 @@ function FriendFilters({
       </div>
 
       <p className="mt-3 text-xs text-white/40">
-        Create and edit groups in{" "}
+        Create and edit groups on{" "}
         <a
           href="/friends"
           className="underline underline-offset-2 hover:text-white/70"
         >
-          Friends → Groups
+          the Friends page
         </a>
         .
       </p>

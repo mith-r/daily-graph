@@ -1,7 +1,8 @@
-// Saved friend-filter groups, persisted per user in the browser's localStorage.
-// Shared by the home graph (which *applies* a group to filter dots) and the
-// Friends → Groups tab (which *edits* them). Keep all the storage-key and
-// (de)serialization logic here so the two callers can't drift apart.
+// Saved friend-filter groups. Group *definitions* are now persisted server-side
+// (see lib/friendGroupsStore) so they follow the user across devices; this
+// module holds the shared types and validation/serialization helpers, plus the
+// localStorage keys still used for the per-device graph-filter *selection* and a
+// one-time migration of groups created before they moved server-side.
 
 export type FriendGroup = {
   id: string;
@@ -27,16 +28,11 @@ export function makeGroupId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-// Validate an untrusted localStorage payload into FriendGroup[]. Drops anything
-// malformed rather than throwing, so a corrupt entry can't break the UI.
-export function parseFriendGroups(raw: string | null): FriendGroup[] {
-  if (!raw) return [];
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return [];
-  }
+// Validate an untrusted value (parsed JSON from localStorage, a client-supplied
+// server-action payload, a stored Redis value) into FriendGroup[]. Drops
+// anything malformed rather than throwing, so a corrupt entry can't break the
+// UI or poison storage.
+export function coerceFriendGroups(parsed: unknown): FriendGroup[] {
   if (!Array.isArray(parsed)) return [];
   return parsed
     .map((group): FriendGroup | null => {
@@ -65,12 +61,19 @@ export function parseFriendGroups(raw: string | null): FriendGroup[] {
     .filter((group): group is FriendGroup => group !== null);
 }
 
+// Validate an untrusted localStorage string payload into FriendGroup[].
+export function parseFriendGroups(raw: string | null): FriendGroup[] {
+  if (!raw) return [];
+  try {
+    return coerceFriendGroups(JSON.parse(raw));
+  } catch {
+    return [];
+  }
+}
+
+// Read any groups left in this browser by an older build that stored them
+// locally. Only used now to migrate them up to the server once.
 export function loadFriendGroups(userId: string): FriendGroup[] {
   if (typeof window === "undefined") return [];
   return parseFriendGroups(localStorage.getItem(friendGroupStorageKey(userId)));
-}
-
-export function saveFriendGroups(userId: string, groups: FriendGroup[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(friendGroupStorageKey(userId), JSON.stringify(groups));
 }

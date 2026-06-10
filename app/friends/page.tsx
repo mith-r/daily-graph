@@ -1,58 +1,74 @@
+import Link from "next/link";
 import { requireUser } from "@/lib/dal";
-import {
-  listAllUsers,
-  listFriends,
-  listIncomingRequests,
-  listOutgoingRequests,
-} from "@/lib/users";
-import type { FriendSummary } from "@/lib/types";
+import { countIncomingRequests, listFriends } from "@/lib/users";
+import { getFriendGroups } from "@/lib/friendGroupsStore";
 import { Nav } from "@/components/Nav";
-import { FriendsBrowser } from "./FriendsBrowser";
-
-// Strip email (and any other secrets) before handing lists to the client component.
-const toPerson = (u: FriendSummary) => ({
-  id: u.id,
-  username: u.username,
-  displayName: u.displayName,
-});
+import { FriendGroupsManager } from "./FriendGroupsManager";
+import { FriendActions } from "./FriendActions";
+import { PersonRow, toPerson } from "./PersonRow";
 
 export const dynamic = "force-dynamic";
 
 export default async function FriendsPage() {
   const me = await requireUser();
-  const [friends, incoming, outgoing, everyone] = await Promise.all([
+  const [friends, incomingCount, groups] = await Promise.all([
     listFriends(me.id),
-    listIncomingRequests(me.id),
-    listOutgoingRequests(me.id),
-    listAllUsers(),
+    countIncomingRequests(me.id),
+    getFriendGroups(me.id),
   ]);
-
-  const known = new Set<string>([
-    me.id,
-    ...friends.map((u) => u.id),
-    ...incoming.map((u) => u.id),
-    ...outgoing.map((u) => u.id),
-  ]);
-  const discover = everyone.filter((u) => !known.has(u.id));
+  const people = friends.map(toPerson);
 
   return (
     <main className="min-h-screen bg-navy text-white flex flex-col">
       <Nav me={me} />
       <div className="flex-1 w-full max-w-xl mx-auto px-4 sm:px-6 py-12 space-y-10">
-        <section>
-          <h1 className="text-2xl font-semibold">Friends</h1>
-          <p className="mt-1 text-sm text-white/60">
-            Only friends&apos; dots show up on your daily graph.
-          </p>
+        <section className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold">Friends</h1>
+            <p className="mt-1 text-sm text-white/60">
+              Only friends&apos; dots show up on your daily graph.
+            </p>
+          </div>
+          <Link
+            href="/friends/add"
+            className="inline-flex items-center gap-2 rounded-md bg-white text-neutral-900 text-sm px-4 py-2 font-medium shrink-0"
+          >
+            Add friends
+            {incomingCount > 0 && (
+              <span
+                aria-label={`${incomingCount} pending friend request${incomingCount === 1 ? "" : "s"}`}
+                className="inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-semibold leading-none min-w-[1.125rem] h-[1.125rem] px-1.5"
+              >
+                {incomingCount > 99 ? "99+" : incomingCount}
+              </span>
+            )}
+          </Link>
         </section>
 
-        <FriendsBrowser
+        <FriendGroupsManager
           meId={me.id}
-          friends={friends.map(toPerson)}
-          incoming={incoming.map(toPerson)}
-          outgoing={outgoing.map(toPerson)}
-          discover={discover.map(toPerson)}
+          friends={people}
+          initialGroups={groups}
         />
+
+        <section>
+          <h2 className="text-sm uppercase tracking-widest text-white/60">
+            Your friends
+          </h2>
+          {people.length === 0 ? (
+            <p className="mt-3 text-sm text-white/50">No friends yet.</p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {people.map((u) => (
+                <PersonRow
+                  key={u.id}
+                  user={u}
+                  action={<FriendActions id={u.id} kind="friend" />}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </main>
   );
