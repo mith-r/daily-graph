@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { requireUser } from "@/lib/dal";
+import { Nav } from "@/components/Nav";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Our Team · Daily Graph",
@@ -55,15 +58,13 @@ function MemberCard({ member }: { member: Member }) {
   );
 }
 
-export default function TeamPage() {
+export default async function TeamPage() {
+  const me = await requireUser();
   return (
-    <main className="min-h-screen bg-navy text-white">
-      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-16">
-        <Link href="/" className="text-sm text-white/60 hover:text-white transition">
-          ← Daily Graph
-        </Link>
-        <p className="mt-1 text-pink-400 text-xs italic">{"“More fun than porn.”"}</p>
-        <h1 className="mt-6 text-3xl font-semibold">Our Team</h1>
+    <main className="min-h-screen bg-navy text-white flex flex-col">
+      <Nav me={me} />
+      <div className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-12">
+        <h1 className="text-3xl font-semibold">Our Team</h1>
         <p className="mt-2 text-white/60">The people building Daily Graph.</p>
 
         <ul className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2">
