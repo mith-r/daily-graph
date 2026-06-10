@@ -10,6 +10,7 @@ import { PromptHeader } from "@/components/PromptHeader";
 import { RegressionLine } from "@/components/RegressionLine";
 import { clampAvatarScale } from "@/lib/avatar";
 import { assignColors, colorFor } from "@/lib/graph";
+import { hapticImpact, ImpactStyle } from "@/lib/haptics";
 import { principalAxisLine, type Point } from "@/lib/regression";
 import type { PlacementWithNudge, PublicUser, TodayResponse } from "@/lib/types";
 import {
@@ -212,6 +213,7 @@ export function HomeClient({ me, initial }: Props) {
       const json = (await res.json()) as TodayResponse;
       setData(json);
       setError(null);
+      hapticImpact(ImpactStyle.Medium);
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to place");
     } finally {
@@ -266,6 +268,7 @@ export function HomeClient({ me, initial }: Props) {
 
       const isRemove =
         Math.hypot(current.dx, current.dy) < NUDGE_REMOVE_THRESHOLD;
+      hapticImpact(ImpactStyle.Light);
 
       // Optimistic update so the marker doesn't flicker. Also stash the
       // optimistic state in inflightNudgesRef so any server response that
@@ -335,6 +338,7 @@ export function HomeClient({ me, initial }: Props) {
       // A nudge is "where I moved others" — clear any focus so the live drag
       // renders in the default view instead of fighting the focused set.
       setFocusedId(null);
+      hapticImpact(ImpactStyle.Light);
       // Compute initial dx/dy from the long-press location relative to the
       // target's actual position, so the drag starts at the finger.
       if (!canvasRef.current) {

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { DEBUG_AUTH_ENABLED } from "@/lib/debug";
 import { AnalyticsTracker } from "@/components/AnalyticsTracker";
+import { PushRegistrar } from "@/components/PushRegistrar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,6 +39,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <AnalyticsTracker />
+        <PushRegistrar />
         {DEBUG_AUTH_ENABLED && (
           <div className="bg-amber-500 text-black text-center text-xs font-medium px-3 py-1">
             ⚠️ Debug auth bypass active — you are the “Debug User”. Disable
