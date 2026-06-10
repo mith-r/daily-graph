@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import type { FriendSummary } from "@/lib/types";
+import { ReportButton } from "@/components/ReportDialog";
 import { FriendActions } from "./FriendActions";
 import { QuickAddButton } from "./QuickAddButton";
 import { FriendGroupsManager } from "./FriendGroupsManager";
@@ -32,7 +33,10 @@ function PersonRow({
         <div className="text-sm">{user.displayName}</div>
         <div className="text-xs text-white/50">@{user.username}</div>
       </div>
-      {action}
+      <div className="flex items-center gap-2">
+        {action}
+        <ReportButton reportedUserId={user.id} reportedName={user.displayName} />
+      </div>
     </li>
   );
 }
