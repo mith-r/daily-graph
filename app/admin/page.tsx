@@ -1,17 +1,36 @@
 import { Nav } from "@/components/Nav";
+import {
+  banUserAction,
+  dismissReportAction,
+  unbanUserAction,
+} from "@/app/actions/moderation";
 import { isAdminEmail, requireAdmin } from "@/lib/admin";
 import { getAnalyticsSummary } from "@/lib/analytics";
 import { todayKey } from "@/lib/date";
+import { isBanned, listOpenReports } from "@/lib/moderation";
 import { getAllPlacements } from "@/lib/placements";
+import { reportReasonLabel } from "@/lib/reportReasons";
 import { listAllUserRecords } from "@/lib/users";
 import { listSuggestionsWithVotes, openRoundDate } from "@/lib/voting";
+import type { User } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 const numberFormat = new Intl.NumberFormat("en-US");
 
+const dateTimeFormat = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 function formatNumber(n: number): string {
   return numberFormat.format(n);
+}
+
+function formatWhen(ts: number): string {
+  return dateTimeFormat.format(new Date(ts));
 }
 
 function formatDuration(ms: number): string {
@@ -43,11 +62,16 @@ export default async function AdminPage() {
     allUsers.filter((u) => isAdminEmail(u.email)).map((u) => u.id)
   );
 
-  const [analytics, placements, suggestions] = await Promise.all([
+  const [analytics, placements, suggestions, reports] = await Promise.all([
     getAnalyticsSummary(today, adminIds),
     getAllPlacements(today),
     listSuggestionsWithVotes(voteDate, { excludeUserIds: adminIds }),
+    listOpenReports(),
   ]);
+
+  // Resolve report participants from the already-loaded user records (no extra
+  // round trips).
+  const usersById = new Map<string, User>(allUsers.map((u) => [u.id, u]));
 
   const users = allUsers.filter((u) => !adminIds.has(u.id));
   const visiblePlacements = placements.filter((p) => !adminIds.has(p.userId));
@@ -157,6 +181,100 @@ export default async function AdminPage() {
               </tbody>
             </table>
           </div>
+        </section>
+
+        <section className="mt-10">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-base font-semibold">Reports</h2>
+            <span className="text-xs text-white/45">
+              {reports.length} open
+            </span>
+          </div>
+          {reports.length === 0 ? (
+            <p className="mt-3 text-sm text-white/50">No open reports.</p>
+          ) : (
+            <div className="mt-3 space-y-3">
+              {reports.map((r) => {
+                const reported = usersById.get(r.reportedUserId);
+                const reporter = usersById.get(r.reporterId);
+                const banned = isBanned(reported);
+                return (
+                  <div
+                    key={r.id}
+                    className="rounded-md border border-white/10 bg-white/[0.035] p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0 space-y-1">
+                        <div className="text-sm">
+                          <span className="text-white/90">
+                            {reported?.displayName ?? "(deleted user)"}
+                          </span>
+                          {reported && (
+                            <span className="text-white/45">
+                              {" "}
+                              @{reported.username}
+                            </span>
+                          )}
+                          {banned && (
+                            <span className="ml-2 rounded border border-red-400/40 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-red-300">
+                              Banned
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-white/50">
+                          {reportReasonLabel(r.reason)} · reported by{" "}
+                          {reporter?.displayName ?? "(deleted user)"} ·{" "}
+                          {formatWhen(r.createdAt)}
+                        </div>
+                        {r.context && (
+                          <div className="text-xs text-white/55">
+                            Context:{" "}
+                            <span className="text-white/75">{r.context}</span>
+                          </div>
+                        )}
+                        {r.details && (
+                          <p className="whitespace-pre-wrap text-sm text-white/70">
+                            {r.details}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {banned ? (
+                          <form
+                            action={unbanUserAction.bind(
+                              null,
+                              r.reportedUserId
+                            )}
+                          >
+                            <button className="rounded-md border border-white/20 px-3 py-1.5 text-xs text-white/80 hover:border-white/40 hover:text-white">
+                              Unban
+                            </button>
+                          </form>
+                        ) : (
+                          <form
+                            action={banUserAction.bind(
+                              null,
+                              r.id,
+                              r.reportedUserId
+                            )}
+                          >
+                            <button className="rounded-md bg-red-500/90 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-500">
+                              Ban
+                            </button>
+                          </form>
+                        )}
+                        <form action={dismissReportAction.bind(null, r.id)}>
+                          <button className="rounded-md border border-white/20 px-3 py-1.5 text-xs text-white/80 hover:border-white/40 hover:text-white">
+                            Dismiss
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       </div>
     </main>
