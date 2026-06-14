@@ -13,11 +13,7 @@ import { assignColors, colorFor } from "@/lib/graph";
 import { hapticImpact, ImpactStyle } from "@/lib/haptics";
 import { principalAxisLine, type Point } from "@/lib/regression";
 import type { PlacementWithNudge, PublicUser, TodayResponse } from "@/lib/types";
-import {
-  ALL_FRIENDS_GROUP_ID,
-  friendSelectionStorageKey,
-  type FriendGroup,
-} from "@/lib/friendGroups";
+import { ALL_FRIENDS_GROUP_ID, type FriendGroup } from "@/lib/friendGroups";
 
 type Props = {
   me: PublicUser;
@@ -61,7 +57,6 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
   // only applies them as a filter. They're edited on the Friends page.
   const friendGroups = initialGroups;
   const [activeGroupId, setActiveGroupId] = useState(ALL_FRIENDS_GROUP_ID);
-  const [filtersLoaded, setFiltersLoaded] = useState(false);
   // The filter panel is collapsed by default so it stays out of the way; the
   // user opens it when they want to narrow the graph. Groups are *applied* here
   // but created/edited over on the Friends page.
@@ -88,7 +83,8 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
 
   // Keep the filter selection in sync as friends place/unplace: drop anyone who
   // left the response, and auto-select any newly-placed friend so new dots show
-  // by default.
+  // by default. The selection is intentionally *not* persisted — every fresh
+  // page load starts with everyone on (see selectedFriendIds' initializer).
   useEffect(() => {
     const currentIds = new Set(data.others.map((p) => p.userId));
     setSelectedFriendIds((prev) => {
@@ -103,51 +99,6 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
     });
     friendIdsRef.current = currentIds;
   }, [data.others]);
-
-  // Load this browser's saved filter *selection* (which friends are toggled on)
-  // once on mount. Group definitions themselves now come from the server.
-  useEffect(() => {
-    const currentIds = new Set(dataRef.current.others.map((p) => p.userId));
-    let loadedSelection: Set<string> | null = null;
-    let cancelled = false;
-
-    try {
-      const rawSelection = localStorage.getItem(
-        friendSelectionStorageKey(me.id)
-      );
-      if (rawSelection) {
-        const parsed = JSON.parse(rawSelection) as unknown;
-        if (Array.isArray(parsed)) {
-          loadedSelection = new Set(
-            parsed.filter(
-              (id): id is string =>
-                typeof id === "string" && currentIds.has(id)
-            )
-          );
-        }
-      }
-    } catch {
-      // Ignore malformed browser storage and fall back to showing all friends.
-    } finally {
-      queueMicrotask(() => {
-        if (cancelled) return;
-        if (loadedSelection) setSelectedFriendIds(loadedSelection);
-        setFiltersLoaded(true);
-      });
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [me.id]);
-
-  useEffect(() => {
-    if (!filtersLoaded) return;
-    localStorage.setItem(
-      friendSelectionStorageKey(me.id),
-      JSON.stringify([...selectedFriendIds])
-    );
-  }, [filtersLoaded, me.id, selectedFriendIds]);
 
   // Switching modes clears any focus so it can't leak into "everyone".
   const changeMode = useCallback((m: Mode) => {
