@@ -1,8 +1,9 @@
 // Saved friend-filter groups. Group *definitions* are now persisted server-side
 // (see lib/friendGroupsStore) so they follow the user across devices; this
 // module holds the shared types and validation/serialization helpers, plus the
-// localStorage keys still used for the per-device graph-filter *selection* and a
-// one-time migration of groups created before they moved server-side.
+// localStorage key still used for a one-time migration of groups created before
+// they moved server-side. The per-device graph-filter *selection* is no longer
+// persisted — the filter resets to everyone-on on every page load.
 
 export type FriendGroup = {
   id: string;
@@ -15,10 +16,6 @@ export const ALL_FRIENDS_GROUP_ID = "__all_friends__";
 
 export function friendGroupStorageKey(userId: string) {
   return `daily-graph:friend-filter-groups:${userId}`;
-}
-
-export function friendSelectionStorageKey(userId: string) {
-  return `daily-graph:friend-filter-selection:${userId}`;
 }
 
 export function makeGroupId() {

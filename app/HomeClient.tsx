@@ -13,11 +13,7 @@ import { assignColors, colorFor } from "@/lib/graph";
 import { hapticImpact, ImpactStyle } from "@/lib/haptics";
 import { principalAxisLine, type Point } from "@/lib/regression";
 import type { PlacementWithNudge, PublicUser, TodayResponse } from "@/lib/types";
-import {
-  ALL_FRIENDS_GROUP_ID,
-  friendSelectionStorageKey,
-  type FriendGroup,
-} from "@/lib/friendGroups";
+import { ALL_FRIENDS_GROUP_ID, type FriendGroup } from "@/lib/friendGroups";
 
 type Props = {
   me: PublicUser;
@@ -61,7 +57,6 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
   // only applies them as a filter. They're edited on the Friends page.
   const friendGroups = initialGroups;
   const [activeGroupId, setActiveGroupId] = useState(ALL_FRIENDS_GROUP_ID);
-  const [filtersLoaded, setFiltersLoaded] = useState(false);
   // The filter panel is collapsed by default so it stays out of the way; the
   // user opens it when they want to narrow the graph. Groups are *applied* here
   // but created/edited over on the Friends page.
@@ -88,7 +83,8 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
 
   // Keep the filter selection in sync as friends place/unplace: drop anyone who
   // left the response, and auto-select any newly-placed friend so new dots show
-  // by default.
+  // by default. The selection is intentionally *not* persisted — every fresh
+  // page load starts with everyone on (see selectedFriendIds' initializer).
   useEffect(() => {
     const currentIds = new Set(data.others.map((p) => p.userId));
     setSelectedFriendIds((prev) => {
@@ -103,66 +99,6 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
     });
     friendIdsRef.current = currentIds;
   }, [data.others]);
-
-  // Load this browser's saved filter selection once on mount. We persist the set
-  // of friends the user has *hidden* (deselected), not the ones shown, so the
-  // filter defaults to everyone-on: with nothing saved every placed friend
-  // shows, and friends who place for the first time today show by default
-  // instead of being hidden because they weren't in an older "shown" list. An
-  // explicit "hide X" still sticks across reloads. Group definitions themselves
-  // come from the server.
-  useEffect(() => {
-    const currentIds = new Set(dataRef.current.others.map((p) => p.userId));
-    let hiddenIds: Set<string> | null = null;
-    let cancelled = false;
-
-    try {
-      const rawSelection = localStorage.getItem(
-        friendSelectionStorageKey(me.id)
-      );
-      if (rawSelection) {
-        const parsed = JSON.parse(rawSelection) as unknown;
-        if (parsed && typeof parsed === "object" && "hidden" in parsed) {
-          const hidden = (parsed as { hidden: unknown }).hidden;
-          if (Array.isArray(hidden)) {
-            hiddenIds = new Set(
-              hidden.filter((id): id is string => typeof id === "string")
-            );
-          }
-        }
-      }
-    } catch {
-      // Ignore malformed browser storage and fall back to showing all friends.
-    } finally {
-      queueMicrotask(() => {
-        if (cancelled) return;
-        if (hiddenIds) {
-          const hidden = hiddenIds;
-          setSelectedFriendIds(
-            new Set([...currentIds].filter((id) => !hidden.has(id)))
-          );
-        }
-        setFiltersLoaded(true);
-      });
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [me.id]);
-
-  useEffect(() => {
-    if (!filtersLoaded) return;
-    // Save the hidden set (placed friends not currently selected) so the default
-    // stays everyone-on. See the load effect above.
-    const hidden = data.others
-      .map((p) => p.userId)
-      .filter((id) => !selectedFriendIds.has(id));
-    localStorage.setItem(
-      friendSelectionStorageKey(me.id),
-      JSON.stringify({ hidden })
-    );
-  }, [filtersLoaded, me.id, selectedFriendIds, data.others]);
 
   // Switching modes clears any focus so it can't leak into "everyone".
   const changeMode = useCallback((m: Mode) => {
