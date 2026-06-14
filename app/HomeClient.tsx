@@ -104,11 +104,16 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
     friendIdsRef.current = currentIds;
   }, [data.others]);
 
-  // Load this browser's saved filter *selection* (which friends are toggled on)
-  // once on mount. Group definitions themselves now come from the server.
+  // Load this browser's saved filter selection once on mount. We persist the set
+  // of friends the user has *hidden* (deselected), not the ones shown, so the
+  // filter defaults to everyone-on: with nothing saved every placed friend
+  // shows, and friends who place for the first time today show by default
+  // instead of being hidden because they weren't in an older "shown" list. An
+  // explicit "hide X" still sticks across reloads. Group definitions themselves
+  // come from the server.
   useEffect(() => {
     const currentIds = new Set(dataRef.current.others.map((p) => p.userId));
-    let loadedSelection: Set<string> | null = null;
+    let hiddenIds: Set<string> | null = null;
     let cancelled = false;
 
     try {
@@ -117,13 +122,13 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
       );
       if (rawSelection) {
         const parsed = JSON.parse(rawSelection) as unknown;
-        if (Array.isArray(parsed)) {
-          loadedSelection = new Set(
-            parsed.filter(
-              (id): id is string =>
-                typeof id === "string" && currentIds.has(id)
-            )
-          );
+        if (parsed && typeof parsed === "object" && "hidden" in parsed) {
+          const hidden = (parsed as { hidden: unknown }).hidden;
+          if (Array.isArray(hidden)) {
+            hiddenIds = new Set(
+              hidden.filter((id): id is string => typeof id === "string")
+            );
+          }
         }
       }
     } catch {
@@ -131,7 +136,12 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
     } finally {
       queueMicrotask(() => {
         if (cancelled) return;
-        if (loadedSelection) setSelectedFriendIds(loadedSelection);
+        if (hiddenIds) {
+          const hidden = hiddenIds;
+          setSelectedFriendIds(
+            new Set([...currentIds].filter((id) => !hidden.has(id)))
+          );
+        }
         setFiltersLoaded(true);
       });
     }
@@ -143,11 +153,16 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
 
   useEffect(() => {
     if (!filtersLoaded) return;
+    // Save the hidden set (placed friends not currently selected) so the default
+    // stays everyone-on. See the load effect above.
+    const hidden = data.others
+      .map((p) => p.userId)
+      .filter((id) => !selectedFriendIds.has(id));
     localStorage.setItem(
       friendSelectionStorageKey(me.id),
-      JSON.stringify([...selectedFriendIds])
+      JSON.stringify({ hidden })
     );
-  }, [filtersLoaded, me.id, selectedFriendIds]);
+  }, [filtersLoaded, me.id, selectedFriendIds, data.others]);
 
   // Switching modes clears any focus so it can't leak into "everyone".
   const changeMode = useCallback((m: Mode) => {
