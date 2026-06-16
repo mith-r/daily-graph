@@ -82,22 +82,29 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
   }, [nudging]);
 
   // Keep the filter selection in sync as friends place/unplace: drop anyone who
-  // left the response, and auto-select any newly-placed friend so new dots show
-  // by default. The selection is intentionally *not* persisted — every fresh
-  // page load starts with everyone on (see selectedFriendIds' initializer).
+  // left the response, and auto-select any newly-appeared friend so new dots
+  // show by default — including the first time you place your own dot, which is
+  // when friends' placements are first revealed (others is empty until then).
+  // The selection is intentionally *not* persisted — every fresh page load
+  // starts with everyone on (see selectedFriendIds' initializer).
   useEffect(() => {
     const currentIds = new Set(data.others.map((p) => p.userId));
+    // Snapshot the previously-known ids BEFORE mutating the ref: React runs the
+    // setState updater below during a later render, so if we read
+    // friendIdsRef.current inside it, it would already equal currentIds and the
+    // "newly appeared" check would never match.
+    const knownIds = friendIdsRef.current;
+    friendIdsRef.current = currentIds;
     setSelectedFriendIds((prev) => {
       const next = new Set<string>();
       for (const id of prev) {
         if (currentIds.has(id)) next.add(id);
       }
       for (const id of currentIds) {
-        if (!friendIdsRef.current.has(id)) next.add(id);
+        if (!knownIds.has(id)) next.add(id);
       }
       return setsEqual(prev, next) ? prev : next;
     });
-    friendIdsRef.current = currentIds;
   }, [data.others]);
 
   // Switching modes clears any focus so it can't leak into "everyone".
