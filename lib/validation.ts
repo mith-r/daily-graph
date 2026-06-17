@@ -107,6 +107,26 @@ export const AvatarConfigSchema = z.object({
   hat: z.enum(HAT_IDS),
 });
 
+// Profile photo upload. The client downscales/crops to a small square JPEG
+// before sending, so this is just a safety net: accept only a base64 data URL
+// of a known image type, and cap the decoded size so a crafted POST can't store
+// an unbounded blob in Redis. ~400 KB comfortably fits the ~20–40 KB the client
+// produces while leaving headroom.
+export const MAX_PHOTO_BYTES = 400_000;
+
+const PHOTO_DATA_URL_RE = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/;
+
+export const PhotoDataUrlSchema = z
+  .string()
+  .refine((v) => PHOTO_DATA_URL_RE.test(v), "Unsupported image format.")
+  .refine((v) => {
+    const b64 = v.slice(v.indexOf(",") + 1);
+    // 4 base64 chars encode 3 bytes; subtract padding to get the byte count.
+    const padding = b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0;
+    const bytes = (b64.length * 3) / 4 - padding;
+    return bytes <= MAX_PHOTO_BYTES;
+  }, "Image is too large.");
+
 // A user-submitted report against another account. reason mirrors ReportReason
 // in lib/types.ts. details/context are free-text and length-capped so a crafted
 // POST can't store an unbounded blob.

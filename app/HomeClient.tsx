@@ -661,6 +661,7 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
               userId={p.userId}
               color={colorOf(p.userId)}
               avatar={p.avatar}
+              photoVersion={p.photoVersion}
               scale={avatarScale}
               onLongPressStart={(cx, cy) => handleLongPress(p.userId, cx, cy)}
               onTap={() =>
@@ -709,6 +710,7 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
             label={data.myPlacement.displayName}
             userId={me.id}
             avatar={data.myPlacement.avatar}
+            photoVersion={data.myPlacement.photoVersion}
             scale={avatarScale}
             isMe
             onTap={

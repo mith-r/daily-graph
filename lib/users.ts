@@ -10,6 +10,7 @@ const userKey = (id: string) => `user:${id}`;
 const emailKey = (email: string) => `user:email:${email.toLowerCase()}`;
 const usernameKey = (username: string) =>
   `user:username:${username.toLowerCase()}`;
+const photoKey = (id: string) => `user:${id}:photo`;
 const friendsKey = (id: string) => `user:${id}:friends`;
 const incomingKey = (id: string) => `user:${id}:incoming`;
 const outgoingKey = (id: string) => `user:${id}:outgoing`;
@@ -158,19 +159,61 @@ export async function updateAvatarScale(
   return { ok: true };
 }
 
-// Batch-load avatars for a set of user ids (e.g. the friends on today's graph)
-// in a single round trip. This runs on the hot /api/today poll path (refreshed
-// every few seconds), so MGET keeps it to one request regardless of friend
-// count. Order is preserved; returns undefined for ids whose user is missing or
-// hasn't designed a face.
+// Store an uploaded profile photo (a base64 data URL). The bytes go under a
+// dedicated key — kept out of the hot /api/today MGET — while a small
+// photoVersion counter on the user record signals "has a photo" and busts the
+// /api/avatar cache. Validated/size-capped by the caller (lib/validation.ts).
+export async function updatePhoto(
+  userId: string,
+  dataUrl: string
+): Promise<{ ok: true } | { error: string }> {
+  const redis = getRedis();
+  const user = await getUserById(userId);
+  if (!user) return { error: "User not found." };
+  await redis.set(photoKey(userId), dataUrl);
+  user.photoVersion = (user.photoVersion ?? 0) + 1;
+  await redis.set(userKey(userId), user);
+  return { ok: true };
+}
+
+// Remove the uploaded photo so the graph falls back to the designed bitmoji.
+export async function removePhoto(
+  userId: string
+): Promise<{ ok: true } | { error: string }> {
+  const redis = getRedis();
+  const user = await getUserById(userId);
+  if (!user) return { error: "User not found." };
+  await redis.del(photoKey(userId));
+  delete user.photoVersion;
+  await redis.set(userKey(userId), user);
+  return { ok: true };
+}
+
+// Read a user's stored photo data URL (used by the /api/avatar serving route).
+export async function getUserPhoto(userId: string): Promise<string | null> {
+  const redis = getRedis();
+  return redis.get<string>(photoKey(userId));
+}
+
+// Batch-load avatar info for a set of user ids (e.g. the friends on today's
+// graph) in a single round trip. This runs on the hot /api/today poll path
+// (refreshed every few seconds), so MGET keeps it to one request regardless of
+// friend count. Order is preserved; returns empty info for ids whose user is
+// missing. The photo bytes are NOT fetched here — only the small photoVersion
+// rides along, so the poll stays tiny.
 export async function getUserAvatars(
   ids: string[]
-): Promise<Map<string, AvatarConfig | undefined>> {
-  const map = new Map<string, AvatarConfig | undefined>();
+): Promise<Map<string, { avatar?: AvatarConfig; photoVersion?: number }>> {
+  const map = new Map<string, { avatar?: AvatarConfig; photoVersion?: number }>();
   if (ids.length === 0) return map;
   const redis = getRedis();
   const users = await redis.mget<(User | null)[]>(ids.map((id) => userKey(id)));
-  ids.forEach((id, i) => map.set(id, users[i]?.avatar ?? undefined));
+  ids.forEach((id, i) =>
+    map.set(id, {
+      avatar: users[i]?.avatar ?? undefined,
+      photoVersion: users[i]?.photoVersion ?? undefined,
+    })
+  );
   return map;
 }
 

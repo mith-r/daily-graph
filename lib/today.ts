@@ -51,19 +51,27 @@ export async function buildTodayResponse(
     nudgesOnMe = all_nudges.filter((n) => friendIds.has(n.nudgerUserId));
   }
 
-  // Join each placement to its owner's designed face (if any) so the graph can
-  // render an avatar in place of the dot. Populated here at read time only —
-  // never written back into the placements hash. Celebrities are intentionally
-  // left out (they keep their gold dots).
+  // Join each placement to its owner's designed face and/or uploaded photo (if
+  // any) so the graph can render an avatar in place of the dot. Populated here
+  // at read time only — never written back into the placements hash. Celebrities
+  // are intentionally left out (they keep their gold dots).
   const avatarIds = [
     ...(mine ? [mine.userId] : []),
     ...others.map((p) => p.userId),
   ];
   const avatars = await getUserAvatars(avatarIds);
   const myPlacement = mine
-    ? { ...mine, avatar: avatars.get(mine.userId) ?? null }
+    ? {
+        ...mine,
+        avatar: avatars.get(mine.userId)?.avatar ?? null,
+        photoVersion: avatars.get(mine.userId)?.photoVersion ?? null,
+      }
     : null;
-  others = others.map((p) => ({ ...p, avatar: avatars.get(p.userId) ?? null }));
+  others = others.map((p) => ({
+    ...p,
+    avatar: avatars.get(p.userId)?.avatar ?? null,
+    photoVersion: avatars.get(p.userId)?.photoVersion ?? null,
+  }));
 
   return {
     date,

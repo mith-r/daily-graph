@@ -4,6 +4,7 @@ import { DEFAULT_AVATAR, clampAvatarScale } from "@/lib/avatar";
 import { Nav } from "@/components/Nav";
 import { AvatarEditor } from "./AvatarEditor";
 import { AvatarSizeSetting } from "./AvatarSizeSetting";
+import { ProfilePhotoSetting } from "./ProfilePhotoSetting";
 
 export const dynamic = "force-dynamic";
 
@@ -23,9 +24,16 @@ export default async function ProfilePage() {
         <section>
           <h1 className="text-2xl font-semibold">Profile</h1>
           <p className="mt-1 text-sm text-white/60">
-            Design the face that shows up in place of your dot on the graph.
+            Upload a photo, or design a face — whichever you set shows up in
+            place of your dot on the graph.
           </p>
         </section>
+
+        <ProfilePhotoSetting
+          userId={me.id}
+          photoVersion={user?.photoVersion}
+          previewAvatar={current}
+        />
 
         <AvatarEditor initial={current} seed={me.id} />
 

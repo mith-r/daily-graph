@@ -3,15 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/dal";
 import {
+  removePhoto,
   updateAvatar,
   updateAvatarScale,
   updateDisplayName,
+  updatePhoto,
   updateUsername,
 } from "@/lib/users";
 import { clampAvatarScale } from "@/lib/avatar";
 import {
   AvatarConfigSchema,
   AvatarScaleSchema,
+  PhotoDataUrlSchema,
   UpdateDisplayNameSchema,
   UpdateUsernameSchema,
 } from "@/lib/validation";
@@ -86,6 +89,36 @@ export async function updateAvatarAction(
   }
 
   const result = await updateAvatar(me.id, parsed.data);
+  if ("error" in result) return { error: result.error };
+  revalidatePath("/");
+  revalidatePath("/profile");
+  return { success: true };
+}
+
+// Upload a profile photo. The client pre-crops/compresses to a small square
+// JPEG and sends it as a base64 data URL; we validate the type and size here as
+// a safety net, then persist it (which also bumps the photo version).
+export async function updatePhotoAction(
+  _state: ProfileFormState,
+  formData: FormData
+): Promise<ProfileFormState> {
+  const me = await requireUser();
+  const raw = formData.get("photo");
+  const parsed = PhotoDataUrlSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid image." };
+  }
+  const result = await updatePhoto(me.id, parsed.data);
+  if ("error" in result) return { error: result.error };
+  revalidatePath("/");
+  revalidatePath("/profile");
+  return { success: true };
+}
+
+// Remove the uploaded photo so the graph falls back to the designed bitmoji.
+export async function removePhotoAction(): Promise<ProfileFormState> {
+  const me = await requireUser();
+  const result = await removePhoto(me.id);
   if ("error" in result) return { error: result.error };
   revalidatePath("/");
   revalidatePath("/profile");
