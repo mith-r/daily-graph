@@ -51,7 +51,7 @@ export default async function HistoryPage() {
   );
 
   return (
-    <main className="min-h-screen bg-navy text-white flex flex-col">
+    <main className="flex-1 bg-navy text-white flex flex-col">
       <Nav me={me} />
       <div className="flex-1 w-full max-w-xl mx-auto px-4 sm:px-6 py-12 space-y-10">
         <section>

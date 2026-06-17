@@ -23,6 +23,10 @@
 html {
   overscroll-behavior-y: none;
   -webkit-text-size-adjust: 100%;
+  /* Never allow horizontal scrolling — the app is a single-screen experience.
+     overflow-x:hidden forces overflow-y to compute to auto, so vertical
+     scrolling still works on pages whose content genuinely overflows. */
+  overflow-x: hidden;
 }
 
 body {

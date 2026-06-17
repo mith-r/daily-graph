@@ -46,7 +46,7 @@ export function GraphCanvas({
   }
 
   return (
-    <div className="relative w-full max-w-xl aspect-square mx-auto">
+    <div className="absolute inset-0 m-auto aspect-square h-full max-w-full sm:relative sm:inset-auto sm:m-0 sm:mx-auto sm:h-auto sm:w-full sm:max-w-xl">
       {/* Axis labels */}
       <div className="absolute -top-7 left-1/2 -translate-x-1/2 text-sm text-white/70 max-w-[80%] text-center truncate">
         {prompt.yTop}
