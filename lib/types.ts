@@ -32,6 +32,10 @@ export type Placement = {
   // face in place of the dot. NOT persisted into the placements hash — the
   // stored Placement never carries it; it's joined in from the user record.
   avatar?: AvatarConfig | null;
+  // The owner's uploaded photo version, if they have one. When set, the graph
+  // renders their photo (via /api/avatar?id=…&v=…) in place of the bitmoji.
+  // Also joined in at read time — never persisted into the placements hash.
+  photoVersion?: number | null;
 };
 
 export type Nudge = {
@@ -81,6 +85,11 @@ export type User = {
   // (see lib/dal.ts), revoking stolen/old sessions after a reset.
   passwordChangedAt?: number;
   avatar?: AvatarConfig; // the user's designed face, if they've made one
+  // Bumped each time the user uploads a profile photo; cleared when they remove
+  // it (absent = no photo). The image bytes live under a separate Redis key
+  // (user:<id>:photo) so they stay out of the hot /api/today MGET; this counter
+  // rides along on the user record and doubles as the URL cache-buster.
+  photoVersion?: number;
   // How big faces render on THIS user's view of the graph — a multiplier on the
   // dot's base size (see lib/avatar.ts). A personal display preference, not how
   // others see them. Absent → the default size.

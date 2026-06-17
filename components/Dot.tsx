@@ -19,6 +19,11 @@ type Props = {
   // replaced by this avatar wrapped in the identity-colored ring. Absent →
   // falls back to the plain colored dot.
   avatar?: AvatarConfig | null;
+  // The owner's uploaded photo version, if any. Takes precedence over `avatar`:
+  // when set (and not a celebrity), the dot shows their photo (served from
+  // /api/avatar?id=…&v=…) inside the same ring. The version busts the cache when
+  // they re-upload.
+  photoVersion?: number | null;
   // Viewer's graph-density multiplier (1 = the historical size). Scales both the
   // avatar and the plain-dot fallback so the whole graph grows/shrinks together.
   scale?: number;
@@ -52,6 +57,7 @@ export function Dot({
   isMe,
   isCelebrity,
   avatar,
+  photoVersion,
   scale = 1,
   onLongPressStart,
   onTap,
@@ -73,8 +79,13 @@ export function Dot({
       : colorProp ?? colorFor(userId);
   const interactive = !!onLongPressStart || !!onTap;
   // Celebrities keep their gold dots; everyone else who has designed a face
-  // shows it. Without a face we fall back to the plain colored dot.
-  const face = !isCelebrity && avatar ? avatar : null;
+  // shows it. Without a face we fall back to the plain colored dot. An uploaded
+  // photo (when present) wins over the designed face.
+  const photoSrc =
+    !isCelebrity && photoVersion != null
+      ? `/api/avatar?id=${encodeURIComponent(userId)}&v=${photoVersion}`
+      : null;
+  const face = !isCelebrity && !photoSrc && avatar ? avatar : null;
 
   // Base pixel sizes (scale 1 = the original look), grown by the viewer's
   // density preference. Faces are a touch bigger than plain dots; "me" is
@@ -99,7 +110,35 @@ export function Dot({
       <div className="relative">
         {/* Visible marker. Stays small visually; the hit area below is what's
             actually pressed. */}
-        {face ? (
+        {photoSrc ? (
+          <div
+            className={`rounded-full overflow-hidden transition-transform duration-150 ${
+              beingNudged ? "scale-[1.25]" : ""
+            }`}
+            style={{
+              // Same identity-colored ring/glow as the designed face, so an
+              // uploaded photo reads identically on the graph.
+              boxShadow: beingNudged
+                ? `0 0 0 2px #ffffff, 0 0 14px ${color}`
+                : `0 0 0 2px ${color}, 0 0 12px ${color}`,
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photoSrc}
+              alt=""
+              width={avatarSize}
+              height={avatarSize}
+              style={{
+                display: "block",
+                width: avatarSize,
+                height: avatarSize,
+                objectFit: "cover",
+                borderRadius: "50%",
+              }}
+            />
+          </div>
+        ) : face ? (
           <div
             className={`rounded-full transition-transform duration-150 ${
               beingNudged ? "scale-[1.25]" : ""
