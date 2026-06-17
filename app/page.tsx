@@ -15,9 +15,9 @@ export default async function Home() {
   ]);
 
   return (
-    <main className="min-h-screen bg-navy text-white flex flex-col">
+    <main className="flex-1 bg-navy text-white flex flex-col">
       <Nav me={me} />
-      <div className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-12">
+      <div className="flex-1 min-h-0 w-full max-w-3xl mx-auto flex flex-col px-4 sm:px-6 py-4 sm:py-12">
         <HomeClient me={me} initial={initial} initialGroups={groups} />
       </div>
     </main>

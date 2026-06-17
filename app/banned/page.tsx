@@ -16,7 +16,7 @@ export default async function BannedPage() {
   if (!user || !isBanned(user)) redirect("/");
 
   return (
-    <main className="min-h-screen bg-navy text-white flex flex-col items-center justify-center px-6 py-12">
+    <main className="flex-1 bg-navy text-white flex flex-col items-center justify-center px-6 py-12">
       <div className="w-full max-w-md rounded-lg border border-white/10 bg-white/[0.035] p-6 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
           Your account is suspended

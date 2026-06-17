@@ -593,13 +593,13 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
   }, [placed, mode, data, visibleFriends]);
 
   return (
-    <>
+    <div className="flex flex-1 min-h-0 flex-col">
       <PromptHeader date={data.date} placed={placed} />
 
       {placed && (
         <div
           className={`flex items-center justify-center gap-2 ${
-            filtersOpen ? "mb-6" : "mb-10"
+            filtersOpen ? "mb-3 sm:mb-6" : "mb-4 sm:mb-10"
           }`}
         >
           <ModeToggle mode={mode} onChange={changeMode} />
@@ -637,6 +637,7 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
         <div className="text-center text-red-400 mt-6 text-sm">{error}</div>
       )}
 
+      <div className="flex-1 min-h-0 relative my-7 sm:my-0 sm:block sm:flex-none">
       <GraphCanvas
         prompt={data.prompt}
         onPlace={handlePlace}
@@ -721,9 +722,10 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
           />
         )}
       </GraphCanvas>
+      </div>
 
       {placed && mode === "friends" && data.others.length === 0 && (
-        <p className="mt-10 text-center text-sm text-white/50">
+        <p className="mt-4 sm:mt-10 text-center text-sm text-white/50">
           You&apos;re the only one of your friends who&apos;s placed so far.{" "}
           <a href="/friends/add" className="underline hover:text-white/80">
             Add friends →
@@ -732,7 +734,7 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
       )}
 
       {placed && mode === "friends" && data.others.length > 0 && (
-        <p className="mt-6 text-center text-xs text-white/40">
+        <p className="mt-3 sm:mt-6 text-center text-xs text-white/40">
           {visibleFriends.length === 0
             ? "No friends match the current filters."
             : "Hold a friend's dot and drag to nudge them. Faint colored lines show who moved you — tap any dot to see who moved it, or tap yourself to highlight who moved you."}
@@ -740,7 +742,7 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
       )}
 
       {placed && mode === "everyone" && (
-        <p className="mt-10 text-center text-xs text-white/40">
+        <p className="mt-4 sm:mt-10 text-center text-xs text-white/40">
           {data.heatmap.total === 0
             ? "You're the first one today."
             : `${data.heatmap.total + 1} people have placed.`}
@@ -756,7 +758,7 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
       )}
 
       {placed && (
-        <p className="mt-6 text-center text-sm">
+        <p className="mt-3 sm:mt-6 text-center text-sm">
           <a
             href="/vote"
             className="text-white/60 hover:text-white transition"
@@ -765,7 +767,7 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
           </a>
         </p>
       )}
-    </>
+    </div>
   );
 }
 

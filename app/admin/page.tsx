@@ -90,7 +90,7 @@ export default async function AdminPage() {
       : 0;
 
   return (
-    <main className="min-h-screen bg-navy text-white">
+    <main className="flex-1 bg-navy text-white">
       <Nav me={me} />
       <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

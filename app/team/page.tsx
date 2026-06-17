@@ -61,7 +61,7 @@ function MemberCard({ member }: { member: Member }) {
 export default async function TeamPage() {
   const me = await requireUser();
   return (
-    <main className="min-h-screen bg-navy text-white flex flex-col">
+    <main className="flex-1 bg-navy text-white flex flex-col">
       <Nav me={me} />
       <div className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-12">
         <h1 className="text-3xl font-semibold">Our Team</h1>
