@@ -769,6 +769,13 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
           </a>
         </p>
       )}
+
+      {mode === "everyone" && (
+        <p className="mt-4 sm:mt-6 text-center text-[11px] leading-relaxed text-white/30">
+          Celebrity placements are parody, randomly generated each day, and not
+          affiliated with, endorsed by, or representative of any real person.
+        </p>
+      )}
     </div>
   );
 }

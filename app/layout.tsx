@@ -35,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
       <body className="min-h-[100dvh] flex flex-col">
         <AnalyticsTracker />
@@ -47,10 +47,6 @@ export default function RootLayout({
           </div>
         )}
         {children}
-        <footer className="mt-auto px-4 py-3 sm:py-6 text-center text-[11px] leading-relaxed text-white/30">
-          Celebrity placements are parody, randomly generated each day, and not
-          affiliated with, endorsed by, or representative of any real person.
-        </footer>
       </body>
     </html>
   );
