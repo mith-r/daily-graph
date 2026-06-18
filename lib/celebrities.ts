@@ -9,7 +9,7 @@ import type { Placement } from "./types";
 // placements all day and a fresh cast tomorrow — no cron, no writes.
 //
 // Parody only: rendered with real names but unaffiliated and randomly placed.
-// See the disclaimer in the site footer (app/layout.tsx).
+// See the disclaimer shown in the "Everyone" view (app/HomeClient.tsx).
 type Celebrity = { id: string; displayName: string };
 
 // The pool is intentionally large (60) so the "Everyone" graph stays fresh:
