@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Daily Graphs — a new graph every day</title>
+    <meta
+      name="description"
+      content="One question a day. Place yourself, then see where your friends land."
+    />
+    <style>
+      :root {
+        --bg: #0a192f;
+        --fg: #e6edf6;
+        --muted: #93a4bd;
+        --c1: #38bdf8;
+        --c2: #818cf8;
+        --c3: #2dd4bf;
+        --card: rgba(255, 255, 255, 0.04);
+        --border: rgba(255, 255, 255, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        line-height: 1.5;
+        overflow-x: hidden;
+      }
+
+      /* Animated background canvas + soft brand glows */
+      #graph {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+      }
+
+      .glow {
+        position: fixed;
+        border-radius: 50%;
+        filter: blur(90px);
+        opacity: 0.5;
+        z-index: 0;
+        pointer-events: none;
+        animation: drift 18s ease-in-out infinite alternate;
+      }
+      .glow.a {
+        width: 480px;
+        height: 480px;
+        top: -140px;
+        left: -120px;
+        background: radial-gradient(circle, rgba(56, 189, 248, 0.55), transparent 70%);
+      }
+      .glow.b {
+        width: 520px;
+        height: 520px;
+        bottom: -180px;
+        right: -140px;
+        background: radial-gradient(circle, rgba(45, 212, 191, 0.45), transparent 70%);
+        animation-delay: -6s;
+      }
+      .glow.c {
+        width: 420px;
+        height: 420px;
+        top: 30%;
+        right: 20%;
+        background: radial-gradient(circle, rgba(129, 140, 248, 0.4), transparent 70%);
+        animation-delay: -11s;
+      }
+      @keyframes drift {
+        from {
+          transform: translate3d(0, 0, 0) scale(1);
+        }
+        to {
+          transform: translate3d(40px, -30px, 0) scale(1.15);
+        }
+      }
+
+      .wrap {
+        position: relative;
+        z-index: 1;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      /* Hero */
+      .hero {
+        min-height: 100svh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 80px 24px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--card);
+        color: var(--muted);
+        font-size: 13px;
+        backdrop-filter: blur(6px);
+      }
+      .badge .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--c3);
+        box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.7);
+        animation: pulse 2.2s infinite;
+      }
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.6);
+        }
+        70% {
+          box-shadow: 0 0 0 10px rgba(45, 212, 191, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(45, 212, 191, 0);
+        }
+      }
+
+      h1 {
+        margin: 22px 0 0;
+        font-size: clamp(40px, 9vw, 84px);
+        line-height: 1.02;
+        letter-spacing: -0.03em;
+        font-weight: 800;
+      }
+      .grad {
+        background-image: linear-gradient(
+          90deg,
+          var(--c1),
+          var(--c2),
+          var(--c3),
+          var(--c1)
+        );
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
+        animation: pan 6s linear infinite;
+      }
+      @keyframes pan {
+        to {
+          background-position: 200% center;
+        }
+      }
+
+      .tagline {
+        height: 30px;
+        margin: 20px 0 0;
+        font-size: clamp(16px, 2.6vw, 22px);
+        color: var(--muted);
+      }
+      .tagline span {
+        display: inline-block;
+        animation: rise 0.5s ease-out;
+      }
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .cta {
+        margin-top: 38px;
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .btn {
+        appearance: none;
+        cursor: pointer;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 16px;
+        padding: 13px 26px;
+        border-radius: 12px;
+        border: 1px solid transparent;
+        transition:
+          transform 0.15s ease,
+          background 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+      .btn:active {
+        transform: translateY(1px) scale(0.99);
+      }
+      .btn-primary {
+        color: #07111f;
+        background: linear-gradient(90deg, var(--c1), var(--c3));
+        box-shadow: 0 10px 30px -10px rgba(56, 189, 248, 0.7);
+      }
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 40px -12px rgba(56, 189, 248, 0.85);
+      }
+      .btn-ghost {
+        color: var(--fg);
+        background: var(--card);
+        border-color: var(--border);
+      }
+      .btn-ghost:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-2px);
+      }
+
+      .scrollcue {
+        margin-top: 56px;
+        color: var(--muted);
+        font-size: 13px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        animation: bob 2.4s ease-in-out infinite;
+      }
+      @keyframes bob {
+        0%,
+        100% {
+          transform: translateY(0);
+          opacity: 0.6;
+        }
+        50% {
+          transform: translateY(6px);
+          opacity: 1;
+        }
+      }
+
+      /* Features */
+      .features {
+        padding: 40px 0 120px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+      }
+      @media (max-width: 720px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 26px;
+        backdrop-filter: blur(6px);
+        opacity: 0;
+        transform: translateY(24px);
+        transition:
+          opacity 0.6s ease,
+          transform 0.6s ease;
+      }
+      .card.in {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .card .ico {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        border-radius: 12px;
+        font-size: 22px;
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(45, 212, 191, 0.2));
+        border: 1px solid var(--border);
+      }
+      .card h3 {
+        margin: 16px 0 6px;
+        font-size: 19px;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      footer {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        color: var(--muted);
+        font-size: 14px;
+        padding: 32px 24px 56px;
+        border-top: 1px solid var(--border);
+      }
+
+      /* Today's-graph preview */
+      .preview {
+        padding: 20px 0 40px;
+        text-align: center;
+      }
+      .eyebrow {
+        margin: 0 0 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .preview h2 {
+        margin: 0 0 26px;
+        font-size: clamp(22px, 4vw, 32px);
+        letter-spacing: -0.02em;
+      }
+      .plot {
+        position: relative;
+        width: min(440px, 82vw);
+        aspect-ratio: 1;
+        margin: 0 auto;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background:
+          radial-gradient(circle at center, rgba(255, 255, 255, 0.04), transparent 70%),
+          var(--card);
+        backdrop-filter: blur(6px);
+        overflow: hidden;
+      }
+      .plot::before,
+      .plot::after {
+        content: "";
+        position: absolute;
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .plot::before {
+        left: 50%;
+        top: 7%;
+        bottom: 7%;
+        width: 1px;
+        transform: translateX(-0.5px);
+      }
+      .plot::after {
+        top: 50%;
+        left: 7%;
+        right: 7%;
+        height: 1px;
+        transform: translateY(-0.5px);
+      }
+      .axis {
+        position: absolute;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--muted);
+        line-height: 1.2;
+      }
+      .axis.top {
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: 60%;
+        text-align: center;
+      }
+      .axis.bottom {
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: 60%;
+        text-align: center;
+      }
+      .axis.left {
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        max-width: 34%;
+        text-align: left;
+      }
+      .axis.right {
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        max-width: 34%;
+        text-align: right;
+      }
+      .pl-dot {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: rgba(160, 190, 225, 0.85);
+        transform: translate(-50%, -50%);
+        animation: pop 0.5s ease-out both;
+      }
+      .pl-dot.you {
+        width: 17px;
+        height: 17px;
+        background: linear-gradient(135deg, var(--c1), var(--c3));
+        box-shadow:
+          0 0 0 4px rgba(56, 189, 248, 0.18),
+          0 0 18px rgba(56, 189, 248, 0.55);
+        z-index: 2;
+        animation:
+          pop 0.5s ease-out both,
+          youpulse 2.4s ease-in-out 0.6s infinite;
+      }
+      @keyframes pop {
+        from {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+      }
+      @keyframes youpulse {
+        0%,
+        100% {
+          box-shadow:
+            0 0 0 4px rgba(56, 189, 248, 0.18),
+            0 0 18px rgba(56, 189, 248, 0.45);
+        }
+        50% {
+          box-shadow:
+            0 0 0 7px rgba(56, 189, 248, 0.08),
+            0 0 26px rgba(56, 189, 248, 0.8);
+        }
+      }
+      .you-tag {
+        position: absolute;
+        transform: translate(-50%, calc(-50% - 16px));
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--c1);
+        white-space: nowrap;
+        z-index: 2;
+        animation: fadein 0.5s ease-out 0.6s both;
+      }
+      @keyframes fadein {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      .preview-note {
+        margin: 22px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        ::before,
+        ::after {
+          animation: none !important;
+          transition: none !important;
+          scroll-behavior: auto !important;
+        }
+        .card {
+          opacity: 1;
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="graph" aria-hidden="true"></canvas>
+    <div class="glow a"></div>
+    <div class="glow b"></div>
+    <div class="glow c"></div>
+
+    <header class="hero">
+      <div class="wrap">
+        <span class="badge"
+          ><span class="dot"></span> Today’s graph · <span id="today">—</span></span
+        >
+        <h1><span class="grad">The Daily Graphs</span></h1>
+        <p class="tagline"><span id="tagline">Where do you stand today?</span></p>
+        <div class="cta">
+          <a class="btn btn-primary" href="/signup">Create an account</a>
+          <a class="btn btn-ghost" href="/login">Log in</a>
+        </div>
+        <div class="scrollcue">Scroll to explore ↓</div>
+      </div>
+    </header>
+
+    <section class="preview">
+      <div class="wrap">
+        <p class="eyebrow">How it works</p>
+        <h2>Where do you land?</h2>
+        <div
+          class="plot"
+          id="plot"
+          role="img"
+          aria-label="Example graph: introvert to extrovert, night owl to early bird"
+        >
+          <span class="axis top">early bird</span>
+          <span class="axis bottom">night owl</span>
+          <span class="axis left">introvert</span>
+          <span class="axis right">extrovert</span>
+        </div>
+        <p class="preview-note">A new topic drops every day — here’s an example.</p>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="wrap grid">
+        <article class="card">
+          <div class="ico">📍</div>
+          <h3>Place yourself</h3>
+          <p>One fresh prompt every day. Drag your dot onto the graph where you land.</p>
+        </article>
+        <article class="card">
+          <div class="ico">👀</div>
+          <h3>See your friends</h3>
+          <p>Once you’ve placed, the graph reveals where everyone you know ended up.</p>
+        </article>
+        <article class="card">
+          <div class="ico">🔁</div>
+          <h3>Come back daily</h3>
+          <p>A brand-new question resets the board at midnight. No feeds, no doomscroll.</p>
+        </article>
+      </div>
+    </section>
+
+    <footer>A new graph every day. © The Daily Graphs</footer>
+
+    <script>
+      (function () {
+        const reduce = window.matchMedia(
+          "(prefers-reduced-motion: reduce)"
+        ).matches;
+
+        // --- Live "today" date in the badge ---
+        try {
+          document.getElementById("today").textContent =
+            new Date().toLocaleDateString(undefined, {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            });
+        } catch (e) {}
+
+        // --- Rotating tagline ---
+        const phrases = [
+          "Where do you stand today?",
+          "One question. One graph. Every day.",
+          "Place yourself. Then see your friends.",
+          "No feeds. No doomscroll. Just today.",
+        ];
+        const el = document.getElementById("tagline");
+        let i = 0;
+        if (!reduce) {
+          setInterval(function () {
+            i = (i + 1) % phrases.length;
+            const next = document.createElement("span");
+            next.textContent = phrases[i];
+            el.replaceChildren(next);
+          }, 3200);
+        }
+
+        // --- Example graph preview: scatter the sample dots. Axis labels are
+        // static in the markup; the real daily topic is intentionally not shown
+        // on this public page. ---
+        (function () {
+          const plot = document.getElementById("plot");
+          if (!plot) return;
+          // Sample placements (percent within the plot); last one is "you".
+          const DOTS = [
+            [33, 38],
+            [61, 29],
+            [45, 63],
+            [70, 56],
+            [26, 67],
+            [64, 71],
+            [39, 24],
+            [56, 47],
+          ];
+          DOTS.forEach(function (pt, i) {
+            const isYou = i === DOTS.length - 1;
+            const d = document.createElement("span");
+            d.className = "pl-dot" + (isYou ? " you" : "");
+            d.style.left = pt[0] + "%";
+            d.style.top = pt[1] + "%";
+            if (!reduce && !isYou) d.style.animationDelay = i * 70 + "ms";
+            plot.appendChild(d);
+            if (isYou) {
+              const tag = document.createElement("span");
+              tag.className = "you-tag";
+              tag.textContent = "you";
+              tag.style.left = pt[0] + "%";
+              tag.style.top = pt[1] + "%";
+              plot.appendChild(tag);
+            }
+          });
+        })();
+
+        // --- Scroll-reveal feature cards ---
+        const cards = document.querySelectorAll(".card");
+        if ("IntersectionObserver" in window && !reduce) {
+          const io = new IntersectionObserver(
+            function (entries) {
+              entries.forEach(function (en, idx) {
+                if (en.isIntersecting) {
+                  setTimeout(function () {
+                    en.target.classList.add("in");
+                  }, idx * 120);
+                  io.unobserve(en.target);
+                }
+              });
+            },
+            { threshold: 0.2 }
+          );
+          cards.forEach(function (c) {
+            io.observe(c);
+          });
+        } else {
+          cards.forEach(function (c) {
+            c.classList.add("in");
+          });
+        }
+
+        // --- Animated constellation "graph" background ---
+        const canvas = document.getElementById("graph");
+        const ctx = canvas.getContext("2d");
+        let w = 0,
+          h = 0,
+          dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const mouse = { x: -9999, y: -9999 };
+        let nodes = [];
+
+        function resize() {
+          w = canvas.clientWidth;
+          h = canvas.clientHeight;
+          canvas.width = w * dpr;
+          canvas.height = h * dpr;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          const target = Math.round(Math.min(70, (w * h) / 22000));
+          nodes = [];
+          for (let k = 0; k < target; k++) {
+            nodes.push({
+              x: Math.random() * w,
+              y: Math.random() * h,
+              vx: (Math.random() - 0.5) * 0.35,
+              vy: (Math.random() - 0.5) * 0.35,
+              r: Math.random() * 1.8 + 1.2,
+              hot: Math.random() < 0.16,
+            });
+          }
+        }
+
+        const COLORS = ["#38bdf8", "#818cf8", "#2dd4bf"];
+        function colorFor(n) {
+          return n.hot ? COLORS[(n.x | 0) % COLORS.length] : "rgba(148,180,220,0.8)";
+        }
+
+        function frame() {
+          ctx.clearRect(0, 0, w, h);
+
+          // faint center axes — evoke a scatter graph
+          ctx.strokeStyle = "rgba(255,255,255,0.05)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(w / 2, 0);
+          ctx.lineTo(w / 2, h);
+          ctx.moveTo(0, h / 2);
+          ctx.lineTo(w, h / 2);
+          ctx.stroke();
+
+          for (const n of nodes) {
+            n.x += n.vx;
+            n.y += n.vy;
+            if (n.x < 0 || n.x > w) n.vx *= -1;
+            if (n.y < 0 || n.y > h) n.vy *= -1;
+
+            // gentle cursor attraction
+            const dx = mouse.x - n.x,
+              dy = mouse.y - n.y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < 26000) {
+              n.x += dx * 0.0008;
+              n.y += dy * 0.0008;
+            }
+          }
+
+          // links between nearby nodes
+          for (let a = 0; a < nodes.length; a++) {
+            for (let b = a + 1; b < nodes.length; b++) {
+              const dx = nodes[a].x - nodes[b].x;
+              const dy = nodes[a].y - nodes[b].y;
+              const dist = Math.hypot(dx, dy);
+              if (dist < 130) {
+                ctx.strokeStyle = "rgba(120,170,220," + (1 - dist / 130) * 0.22 + ")";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(nodes[a].x, nodes[a].y);
+                ctx.lineTo(nodes[b].x, nodes[b].y);
+                ctx.stroke();
+              }
+            }
+          }
+
+          // nodes
+          for (const n of nodes) {
+            ctx.beginPath();
+            ctx.fillStyle = colorFor(n);
+            ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+            ctx.fill();
+            if (n.hot) {
+              ctx.beginPath();
+              ctx.strokeStyle = "rgba(56,189,248,0.25)";
+              ctx.arc(n.x, n.y, n.r + 4, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+          }
+
+          if (!reduce) requestAnimationFrame(frame);
+        }
+
+        window.addEventListener("resize", resize);
+        window.addEventListener("pointermove", function (e) {
+          mouse.x = e.clientX;
+          mouse.y = e.clientY;
+        });
+        window.addEventListener("pointerleave", function () {
+          mouse.x = mouse.y = -9999;
+        });
+
+        resize();
+        // Paint the first frame synchronously so the canvas is never blank on
+        // load; frame() then self-schedules via rAF unless reduced-motion.
+        frame();
+      })();
+    </script>
+  </body>
+</html>
