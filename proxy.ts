@@ -5,7 +5,12 @@ import { DEBUG_AUTH_ENABLED } from "@/lib/debug";
 // NOTE: /verify-email is deliberately NOT public — it needs a session, and the
 // verification check itself lives in the DAL (this proxy can run outside the
 // main runtime, where the in-memory Redis stub isn't available).
-const PUBLIC_PATHS = new Set(["/login", "/signup", "/forgot-password"]);
+const PUBLIC_PATHS = new Set([
+  "/welcome",
+  "/login",
+  "/signup",
+  "/forgot-password",
+]);
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -19,12 +24,15 @@ export async function proxy(request: NextRequest) {
   const isPublic = PUBLIC_PATHS.has(pathname);
 
   if (!authed && !isPublic) {
-    const url = new URL("/login", request.url);
+    // The welcome screen offers Log in / Create account as clear choices,
+    // rather than dropping first-timers straight onto the login form.
+    const url = new URL("/welcome", request.url);
     return NextResponse.redirect(url);
   }
 
-  // Only bounce away from /login|/signup for a *real* session — otherwise a
-  // debug-bypass user could never reach the forms to log in as someone else.
+  // Only bounce away from the public auth screens for a *real* session —
+  // otherwise a debug-bypass user could never reach the forms to log in as
+  // someone else.
   if (realAuthed && isPublic) {
     return NextResponse.redirect(new URL("/", request.url));
   }
