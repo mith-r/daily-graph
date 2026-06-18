@@ -24,9 +24,9 @@ export async function proxy(request: NextRequest) {
   const isPublic = PUBLIC_PATHS.has(pathname);
 
   if (!authed && !isPublic) {
-    // The welcome screen offers Log in / Create account as clear choices,
-    // rather than dropping first-timers straight onto the login form.
-    const url = new URL("/welcome", request.url);
+    // First-timers land on the animated marketing page. It's a static file in
+    // public/, so it sits outside this matcher and is served directly.
+    const url = new URL("/landing.html", request.url);
     return NextResponse.redirect(url);
   }
 
