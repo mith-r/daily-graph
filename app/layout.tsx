@@ -37,7 +37,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
-      <body className="min-h-[100dvh] flex flex-col">
+      <body className="h-[100dvh] overflow-y-auto overscroll-y-none flex flex-col">
         <AnalyticsTracker />
         <PushRegistrar />
         {DEBUG_AUTH_ENABLED && (
