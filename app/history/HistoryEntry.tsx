@@ -42,25 +42,27 @@ export function HistoryEntry({
         </p>
       </header>
 
-      <GraphCanvas prompt={prompt} disabled>
-        {regression && <RegressionLine segment={regression} />}
-        {others.map((p) => (
+      <div className="relative aspect-square w-full my-7 sm:my-0 sm:aspect-auto sm:w-auto">
+        <GraphCanvas prompt={prompt} disabled>
+          {regression && <RegressionLine segment={regression} />}
+          {others.map((p) => (
+            <Dot
+              key={p.userId}
+              x={p.x}
+              y={p.y}
+              label={p.displayName}
+              userId={p.userId}
+            />
+          ))}
           <Dot
-            key={p.userId}
-            x={p.x}
-            y={p.y}
-            label={p.displayName}
-            userId={p.userId}
+            x={mine.x}
+            y={mine.y}
+            label={mine.displayName}
+            userId={meId}
+            isMe
           />
-        ))}
-        <Dot
-          x={mine.x}
-          y={mine.y}
-          label={mine.displayName}
-          userId={meId}
-          isMe
-        />
-      </GraphCanvas>
+        </GraphCanvas>
+      </div>
 
       <p className="mt-10 text-center text-xs text-white/40">
         {total === 1 ? "Only you placed." : `${total} people placed.`}
