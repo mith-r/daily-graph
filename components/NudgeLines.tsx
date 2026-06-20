@@ -25,6 +25,12 @@ export function NudgeLines({ lines }: Props) {
       aria-hidden
       className="absolute inset-0 w-full h-full pointer-events-none"
       viewBox="-1 -1 2 2"
+      // Stretch the -1..1 box to fill the (possibly non-square) canvas instead of
+      // letterboxing it (the SVG default, xMidYMid meet). The dots/markers are
+      // positioned with CSS percentages that fill the full rectangle, so the line
+      // layer must stretch the same way to actually touch both endpoints. Stroke
+      // width is unaffected thanks to vectorEffect="non-scaling-stroke" below.
+      preserveAspectRatio="none"
     >
       {lines.map((l) => {
         const base = l.opacity ?? 0.4;
