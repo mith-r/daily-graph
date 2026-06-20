@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireUser } from "@/lib/dal";
+import { requireAdmin } from "@/lib/admin";
 import { Nav } from "@/components/Nav";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +59,7 @@ function MemberCard({ member }: { member: Member }) {
 }
 
 export default async function TeamPage() {
-  const me = await requireUser();
+  const me = await requireAdmin();
   return (
     <main className="flex-1 bg-navy text-white flex flex-col">
       <Nav me={me} />
