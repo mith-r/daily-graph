@@ -9,6 +9,9 @@ import { PushNotifications } from "@capacitor/push-notifications";
 export function PushRegistrar() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
+    // Fallback for the no-scroll layout class in case the head script ran
+    // before the Capacitor bridge was ready (see app/layout.tsx). Idempotent.
+    document.documentElement.classList.add("native");
 
     let cancelled = false;
 

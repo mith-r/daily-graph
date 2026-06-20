@@ -34,3 +34,36 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/* Native (Capacitor iOS) shell only — <html> gets the `native` class (set in
+   app/layout.tsx). Restores the single-screen, no-scroll layout: a viewport-
+   capped body scroller plus a graph that fills the leftover space. The web (at
+   any width) keeps the default scrollable, in-flow, normally-sized layout.
+   These rules are unlayered, so they win over Tailwind's layered utilities. */
+html.native body {
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior-y: none;
+}
+/* Graph wrapper: absorb the column's leftover space so the graph shrinks to
+   fit one screen (web: stays a fixed-size in-flow square that can scroll). */
+html.native .graph-slot {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+/* GraphCanvas: fill the (relative, sized) wrapper. Mirrors the old mobile
+   `absolute inset-0 m-auto h-full w-auto max-w-full` + the shared aspect-square
+   so the square is sized by height and centered. Scoped to the home page's
+   `.graph-slot` on purpose: the History page reuses `.graph-canvas` inside a
+   content-sized wrapper (`sm:aspect-auto sm:w-auto`), and absolutely positioning
+   the canvas there would pull it out of flow and collapse the wrapper to zero
+   height — hiding every history graph on native at ≥640px (iPhone landscape /
+   iPad). There the in-flow `relative aspect-square` default already fits. */
+html.native .graph-slot .graph-canvas {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+}

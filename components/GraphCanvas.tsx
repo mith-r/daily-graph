@@ -47,7 +47,7 @@ export function GraphCanvas({
 
   return (
     <div
-      className="absolute inset-0 m-auto aspect-square h-full max-w-full select-none sm:relative sm:inset-auto sm:m-0 sm:mx-auto sm:h-auto sm:w-full sm:max-w-xl"
+      className="graph-canvas relative mx-auto aspect-square w-full max-w-xl select-none"
       // In a WKWebView (the iOS app shell), a long-press — exactly what starts a
       // nudge — otherwise triggers WebKit's native text/element selection and
       // callout, which hijacks the drag so dots can't be moved. Suppress both.

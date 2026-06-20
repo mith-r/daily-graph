@@ -37,7 +37,17 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
-      <body className="h-[100dvh] overflow-y-auto overscroll-y-none flex flex-col">
+      <body className="min-h-[100dvh] flex flex-col">
+        {/* Mark the native (Capacitor) shell synchronously, before first paint,
+            so the no-scroll layout (gated on `html.native`) applies without a
+            flash. The Capacitor bridge injects window.Capacitor at document
+            start; PushRegistrar re-applies this post-hydration as a fallback. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var c=window.Capacitor;if(c&&c.isNativePlatform&&c.isNativePlatform())document.documentElement.classList.add('native')}catch(e){}",
+          }}
+        />
         <AnalyticsTracker />
         <PushRegistrar />
         {DEBUG_AUTH_ENABLED && (
