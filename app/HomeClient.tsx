@@ -637,7 +637,7 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
         <div className="text-center text-red-400 mt-6 text-sm">{error}</div>
       )}
 
-      <div className="flex-1 min-h-0 relative my-7 sm:my-0 sm:block sm:flex-none">
+      <div className="graph-slot relative w-full my-7 flex-none sm:my-0">
       <GraphCanvas
         prompt={data.prompt}
         onPlace={handlePlace}
