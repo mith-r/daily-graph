@@ -53,8 +53,13 @@ html.native .graph-slot {
 }
 /* GraphCanvas: fill the (relative, sized) wrapper. Mirrors the old mobile
    `absolute inset-0 m-auto h-full w-auto max-w-full` + the shared aspect-square
-   so the square is sized by height and centered. */
-html.native .graph-canvas {
+   so the square is sized by height and centered. Scoped to the home page's
+   `.graph-slot` on purpose: the History page reuses `.graph-canvas` inside a
+   content-sized wrapper (`sm:aspect-auto sm:w-auto`), and absolutely positioning
+   the canvas there would pull it out of flow and collapse the wrapper to zero
+   height — hiding every history graph on native at ≥640px (iPhone landscape /
+   iPad). There the in-flow `relative aspect-square` default already fits. */
+html.native .graph-slot .graph-canvas {
   position: absolute;
   inset: 0;
   margin: auto;
