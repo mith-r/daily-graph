@@ -30,7 +30,7 @@ export async function Nav({ me }: { me: PublicUser }) {
       </NavLink>
       <NavLink href="/vote">Vote</NavLink>
       <NavLink href="/history">History</NavLink>
-      <NavLink href="/team">Team</NavLink>
+      {isAdmin && <NavLink href="/team">Team</NavLink>}
       {isAdmin && <NavLink href="/admin">Admin</NavLink>}
     </>
   );
