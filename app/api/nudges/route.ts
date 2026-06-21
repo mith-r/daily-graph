@@ -14,6 +14,11 @@ export async function POST(req: Request) {
 
   const data = await readJson(req);
   if (data instanceof NextResponse) return data;
+  // JSON.parse("null") succeeds (and arrays/primitives parse too); guard before
+  // reading properties so a `null` body returns 400 rather than throwing a 500.
+  if (data === null || typeof data !== "object") {
+    return NextResponse.json({ error: "bad json" }, { status: 400 });
+  }
   const body = data as { targetUserId?: unknown; dx?: unknown; dy?: unknown };
   if (typeof body.targetUserId !== "string" || !body.targetUserId) {
     return NextResponse.json({ error: "invalid target" }, { status: 400 });

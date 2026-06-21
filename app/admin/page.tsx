@@ -7,7 +7,7 @@ import {
 import { isAdminEmail, requireAdmin } from "@/lib/admin";
 import { getAnalyticsSummary } from "@/lib/analytics";
 import { todayKey } from "@/lib/date";
-import { isBanned, listOpenReports } from "@/lib/moderation";
+import { getBannedIds, listOpenReports } from "@/lib/moderation";
 import { getAllPlacements } from "@/lib/placements";
 import { reportReasonLabel } from "@/lib/reportReasons";
 import { listAllUserRecords } from "@/lib/users";
@@ -72,6 +72,9 @@ export default async function AdminPage() {
   // Resolve report participants from the already-loaded user records (no extra
   // round trips).
   const usersById = new Map<string, User>(allUsers.map((u) => [u.id, u]));
+  // Ban state lives on its own key now (lib/banStore), so resolve it in one
+  // batch rather than reading bannedAt off the user record.
+  const bannedIds = await getBannedIds(reports.map((r) => r.reportedUserId));
 
   const users = allUsers.filter((u) => !adminIds.has(u.id));
   const visiblePlacements = placements.filter((p) => !adminIds.has(p.userId));
@@ -197,7 +200,7 @@ export default async function AdminPage() {
               {reports.map((r) => {
                 const reported = usersById.get(r.reportedUserId);
                 const reporter = usersById.get(r.reporterId);
-                const banned = isBanned(reported);
+                const banned = bannedIds.has(r.reportedUserId);
                 return (
                   <div
                     key={r.id}
@@ -251,13 +254,7 @@ export default async function AdminPage() {
                             </button>
                           </form>
                         ) : (
-                          <form
-                            action={banUserAction.bind(
-                              null,
-                              r.id,
-                              r.reportedUserId
-                            )}
-                          >
+                          <form action={banUserAction.bind(null, r.id)}>
                             <button className="rounded-md bg-red-500/90 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-500">
                               Ban
                             </button>

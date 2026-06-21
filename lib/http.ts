@@ -27,9 +27,10 @@ export async function readJson(req: Request): Promise<unknown | NextResponse> {
   }
 }
 
-// Coerce an unknown into a finite number, or null. Shared numeric guard so a
-// crafted request can't smuggle NaN/Infinity/strings past a route's validation.
+// Require a genuine finite number, else null. Deliberately does NOT Number()-
+// coerce: null/""/[]/false would become 0 and true would become 1 — all
+// "valid" coords/offsets — silently pinning junk input. Anything that isn't
+// already a finite number is rejected so the caller can 400 it.
 export function toFiniteNumber(value: unknown): number | null {
-  const n = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(n) ? n : null;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }

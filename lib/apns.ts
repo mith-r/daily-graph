@@ -54,6 +54,14 @@ export async function sendApnsAlert(
   const payload = JSON.stringify({ aps: { alert, sound: "default" } });
 
   const client = http2.connect(host);
+  // A ClientHttp2Session emits 'error' on TLS/DNS/connection failures and GOAWAY.
+  // Without a listener, Node throws ERR_UNHANDLED_ERROR asynchronously — escaping
+  // the try/finally below and crashing the whole serverless function (aborting the
+  // entire daily blast). Swallow it here; the per-request streams reject on their
+  // own and are counted as failures.
+  client.on("error", (err) => {
+    console.error("APNs HTTP/2 session error:", err);
+  });
   try {
     const results = await Promise.allSettled(
       tokens.map(
@@ -67,6 +75,9 @@ export async function sendApnsAlert(
                 "apns-topic": topic,
                 "apns-push-type": "alert",
                 "apns-priority": "10",
+                // Collapse repeat sends of the daily blast (e.g. a cron retry)
+                // into a single notification per device instead of stacking.
+                "apns-collapse-id": "daily-graph",
                 "content-type": "application/json",
               });
               let status = 0;

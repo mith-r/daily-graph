@@ -20,6 +20,11 @@ export async function POST(req: Request) {
 
   const data = await readJson(req);
   if (data instanceof NextResponse) return data;
+  // A literal `null` body parses fine; guard before property access so it 400s
+  // instead of throwing an uncaught TypeError (500).
+  if (data === null || typeof data !== "object") {
+    return NextResponse.json({ error: "invalid event" }, { status: 400 });
+  }
 
   const body = data as {
     event?: unknown;

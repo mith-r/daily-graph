@@ -47,8 +47,11 @@ export function Heatmap({ data }: Props) {
     >
       {grid.map((count, i) => {
         if (count === 0) return <div key={i} />;
-        // Density always includes the cell itself (weight 1), so subtract that so a lone dot starts at 0.
-        const neighbors = Math.max(density[i] - 1, 0);
+        // The cell contributes its FULL count to its own density (center kernel
+        // weight is exp(0)=1), so subtract `count` — not a constant 1 — to remove
+        // the self-contribution. A lone cell then starts at 0 regardless of how
+        // many placements share it, leaving only genuine neighbor density.
+        const neighbors = Math.max(density[i] - count, 0);
         const intensity = Math.min(neighbors / 3, 1);
         const size = 50 + intensity * 200;
         const alpha = 0.2 + intensity * 0.5;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/admin";
 import { recordPlacement } from "@/lib/analytics";
-import { getPlacement, setPlacement } from "@/lib/placements";
+import { createPlacement } from "@/lib/placements";
 import { todayKey } from "@/lib/date";
 import { readJson, requireVerified, toFiniteNumber } from "@/lib/http";
 import { buildTodayResponse } from "@/lib/today";
@@ -9,6 +9,9 @@ import type { Placement } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
+// toFiniteNumber rejects coerced junk (null/""/[]/false→0, true→1) outright, so
+// a garbage coord 400s instead of silently pinning a permanent first placement
+// at the center/corner. Then clamp the genuine number into the unit square.
 function clampCoord(v: unknown): number | null {
   const n = toFiniteNumber(v);
   return n === null ? null : Math.max(-1, Math.min(1, n));
@@ -20,6 +23,11 @@ export async function POST(req: Request) {
 
   const data = await readJson(req);
   if (data instanceof NextResponse) return data;
+  // `null`/non-object bodies parse fine; guard before property access so they
+  // 400 instead of throwing an uncaught TypeError (500).
+  if (data === null || typeof data !== "object") {
+    return NextResponse.json({ error: "bad json" }, { status: 400 });
+  }
   const body = data as { x?: unknown; y?: unknown };
   const x = clampCoord(body.x);
   const y = clampCoord(body.y);
@@ -30,23 +38,22 @@ export async function POST(req: Request) {
   const date = todayKey();
 
   try {
-    // If already placed today, the new coords are ignored (idempotent).
-    const existing = await getPlacement(date, me.id);
-    const placement: Placement =
-      existing ?? {
-        userId: me.id,
-        displayName: me.displayName,
-        x,
-        y,
-        createdAt: Date.now(),
-      };
-    if (!existing) {
-      await setPlacement(date, placement);
-      if (!isAdminUser(me)) {
-        await recordPlacement(date).catch((err) => {
-          console.error("analytics placement counter failed:", err);
-        });
-      }
+    // Place once per day. createPlacement is atomic (HSETNX): only the call that
+    // actually creates the placement returns true, so the analytics counter is
+    // incremented exactly once even under concurrent first POSTs. A later POST
+    // (already placed) is a no-op and the existing coords stand.
+    const placement: Placement = {
+      userId: me.id,
+      displayName: me.displayName,
+      x,
+      y,
+      createdAt: Date.now(),
+    };
+    const created = await createPlacement(date, placement);
+    if (created && !isAdminUser(me)) {
+      await recordPlacement(date).catch((err) => {
+        console.error("analytics placement counter failed:", err);
+      });
     }
 
     const resp = await buildTodayResponse(me, date);

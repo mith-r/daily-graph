@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { readSession } from "./session";
 import { ensureDebugUser, getUserById, toPublic } from "./users";
 import { DEBUG_AUTH_ENABLED, DEBUG_USER } from "./debug";
-import { isBanned } from "./moderation";
+import { getBan, isBanned, type BanState } from "./moderation";
 import type { PublicUser, User } from "./types";
 
 export const getSession = cache(async () => {
@@ -15,10 +15,11 @@ export const getSession = cache(async () => {
 });
 
 // A ban locks the account out everywhere — except keep the Debug User usable in
-// local dev (DEBUG_BYPASS_AUTH), so a test ban can't brick the bypass.
-function isLockedOut(user: User): boolean {
+// local dev (DEBUG_BYPASS_AUTH), so a test ban can't brick the bypass. Ban state
+// is read from its own key (lib/banStore) so a profile edit can't mask it.
+function isLockedOut(user: User, ban: BanState | null): boolean {
   return (
-    isBanned(user) && !(DEBUG_AUTH_ENABLED && user.id === DEBUG_USER.id)
+    isBanned(ban) && !(DEBUG_AUTH_ENABLED && user.id === DEBUG_USER.id)
   );
 }
 
@@ -35,19 +36,23 @@ export const getCurrentUser = cache(async (): Promise<PublicUser | null> => {
     return DEBUG_AUTH_ENABLED ? toPublic(await ensureDebugUser()) : null;
   }
   // Reject sessions issued before the last password change (i.e. revoke all
-  // pre-reset sessions). `iat` is whole seconds (truncated down), so compare
-  // against the floored change time — a session minted in the same second as
-  // the reset (the post-reset auto-login) survives.
-  if (
-    user.passwordChangedAt &&
-    session.issuedAt !== undefined &&
-    session.issuedAt < Math.floor(user.passwordChangedAt / 1000)
-  ) {
-    return DEBUG_AUTH_ENABLED ? toPublic(await ensureDebugUser()) : null;
+  // pre-reset sessions). Prefer the millisecond issue time so a pre-existing
+  // session minted in the SAME second as the reset is still revoked, while the
+  // post-reset auto-login (minted strictly after passwordChangedAt) survives.
+  // Legacy tokens lack issuedAtMs → fall back to the floored-second comparison.
+  if (user.passwordChangedAt) {
+    const revoked =
+      session.issuedAtMs !== undefined
+        ? session.issuedAtMs < user.passwordChangedAt
+        : session.issuedAt !== undefined &&
+          session.issuedAt < Math.floor(user.passwordChangedAt / 1000);
+    if (revoked) {
+      return DEBUG_AUTH_ENABLED ? toPublic(await ensureDebugUser()) : null;
+    }
   }
   // Banned users resolve to null: API routes hit their existing `!me → 401` and
   // pages fall through to requireUser's /banned redirect below.
-  if (isLockedOut(user)) return null;
+  if (isLockedOut(user, await getBan(user.id))) return null;
   return toPublic(user);
 });
 
@@ -61,7 +66,7 @@ export async function requireAccount(): Promise<PublicUser> {
   const session = await getSession();
   if (session) {
     const raw = await getUserById(session.userId);
-    if (raw && isLockedOut(raw)) redirect("/banned");
+    if (raw && isLockedOut(raw, await getBan(raw.id))) redirect("/banned");
   }
   redirect("/login");
 }

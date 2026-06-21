@@ -58,20 +58,37 @@ export async function issueOtp(opts: {
   const limiter = (opts.limiterKey ?? opts.userId).toLowerCase();
   const now = Date.now();
 
-  if (!opts.ignoreCooldown) {
-    const cd = await redis.get<{ at: number }>(
-      cooldownKey(opts.purpose, limiter)
-    );
-    if (cd && cd.at + RESEND_COOLDOWN_MS > now) return { error: "cooldown" };
+  // Reserve the resend cooldown ATOMICALLY (SET NX). This both enforces the
+  // 1/min limit and serializes concurrent requests, so the (non-atomic)
+  // rate-limit read-modify-write below can't be raced on the normal path. The
+  // fix-email path (ignoreCooldown) must be allowed past the OLD address's
+  // cooldown, so it overwrites instead of gating.
+  const cdKey = cooldownKey(opts.purpose, limiter);
+  const cdSeconds = Math.ceil(RESEND_COOLDOWN_MS / 1000);
+  if (opts.ignoreCooldown) {
+    await redis.set(cdKey, { at: now }, { ex: cdSeconds });
+  } else {
+    const reserved = await redis.set(cdKey, { at: now }, { nx: true, ex: cdSeconds });
+    if (reserved !== "OK") return { error: "cooldown" };
   }
 
-  // Read-modify-write window counter; non-atomic, but the cooldown above
-  // already serializes legitimate traffic — fine at this app's scale.
+  // Consume an hourly slot up-front (before sending). Spending it on every
+  // attempt — success OR failure — bounds repeated send attempts to a bad /
+  // bouncing address (abuse protection), while the cooldown reserved above paces
+  // retries so a transient outage can't burn all 5 slots at once.
   const rlKey = rateLimitKey(opts.purpose, limiter);
   const rl = await redis.get<{ count: number; resetAt: number }>(rlKey);
-  if (rl && rl.resetAt > now) {
-    if (rl.count >= RATE_LIMIT_MAX) return { error: "rate_limited" };
-    await redis.set(rlKey, { count: rl.count + 1, resetAt: rl.resetAt });
+  const windowActive = !!rl && rl.resetAt > now;
+  if (windowActive && rl!.count >= RATE_LIMIT_MAX) {
+    return { error: "rate_limited" };
+  }
+  if (windowActive) {
+    // Keep the window's TTL — a plain SET would clear it on real Redis.
+    await redis.set(
+      rlKey,
+      { count: rl!.count + 1, resetAt: rl!.resetAt },
+      { ex: Math.max(1, Math.ceil((rl!.resetAt - now) / 1000)) }
+    );
   } else {
     await redis.set(
       rlKey,
@@ -80,7 +97,22 @@ export async function issueOtp(opts: {
     );
   }
 
+  // Generate + send. Crucially, do NOT overwrite the stored code until the send
+  // succeeds: a failed send must leave any previously-delivered (still-valid)
+  // code intact so the user isn't stranded with a code that never arrived.
   const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
+  try {
+    await sendOtpEmail({ to: opts.email, code, purpose: opts.purpose });
+  } catch (err) {
+    console.error(`[otp] send failed (${opts.purpose}):`, err);
+    // Keep the reserved cooldown AND the consumed slot on failure: retries stay
+    // paced at 1/min and capped at 5/hour, so a provider outage or a retry loop
+    // can't hammer the email service. The user retries after the cooldown. (We
+    // deliberately don't release the cooldown here — doing so would defeat the
+    // pacing and could erase a concurrent request's reservation.)
+    return { error: "send_failed" };
+  }
+
   const record: OtpRecord = {
     codeHash: hashCode(opts.userId, opts.purpose, code),
     email: opts.email,
@@ -91,19 +123,6 @@ export async function issueOtp(opts: {
   await redis.set(otpKey(opts.purpose, opts.userId), record, {
     ex: Math.ceil(CODE_TTL_MS / 1000),
   });
-
-  try {
-    await sendOtpEmail({ to: opts.email, code, purpose: opts.purpose });
-  } catch (err) {
-    console.error(`[otp] send failed (${opts.purpose}):`, err);
-    return { error: "send_failed" };
-  }
-
-  await redis.set(
-    cooldownKey(opts.purpose, limiter),
-    { at: now },
-    { ex: Math.ceil(RESEND_COOLDOWN_MS / 1000) }
-  );
   return { ok: true };
 }
 

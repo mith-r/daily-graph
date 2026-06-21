@@ -17,7 +17,13 @@ function getSecretKey(): Uint8Array {
 }
 
 async function encryptSession(payload: SessionPayload): Promise<string> {
-  return new SignJWT({ userId: payload.userId, expiresAt: payload.expiresAt })
+  return new SignJWT({
+    userId: payload.userId,
+    expiresAt: payload.expiresAt,
+    // Millisecond issue time so the DAL can compare against passwordChangedAt
+    // (also ms) without the floored-second ambiguity of the standard `iat`.
+    iatMs: Date.now(),
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(Math.floor(payload.expiresAt / 1000))
@@ -39,7 +45,11 @@ export async function decryptSession(
     // `iat` (seconds) is set by .setIssuedAt() at signing; surfaced so the DAL
     // can reject sessions minted before the user's last password change.
     const issuedAt = typeof payload.iat === "number" ? payload.iat : undefined;
-    return { userId, expiresAt, issuedAt };
+    // Higher-resolution issue time minted by encryptSession (absent on legacy
+    // tokens, where the DAL falls back to the second-precision `iat`).
+    const issuedAtMs =
+      typeof payload.iatMs === "number" ? payload.iatMs : undefined;
+    return { userId, expiresAt, issuedAt, issuedAtMs };
   } catch {
     return null;
   }

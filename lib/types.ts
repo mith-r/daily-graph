@@ -90,15 +90,17 @@ export type User = {
   // (user:<id>:photo) so they stay out of the hot /api/today MGET; this counter
   // rides along on the user record and doubles as the URL cache-buster.
   photoVersion?: number;
+  // Monotonic upload counter that, unlike photoVersion, is NEVER reset on photo
+  // removal. photoVersion is reused for "has a photo" presence (cleared on
+  // remove); photoSeq guarantees each new upload gets a strictly-fresh version
+  // number so a replacement photo can't collide with an immutably-cached old URL.
+  photoSeq?: number;
   // How big faces render on THIS user's view of the graph — a multiplier on the
   // dot's base size (see lib/avatar.ts). A personal display preference, not how
   // others see them. Absent → the default size.
   avatarScale?: number;
-  // Moderation: set when a mod bans the account. A banned user is locked out
-  // everywhere (see lib/dal.ts). Server-only — never copied onto PublicUser.
-  bannedAt?: number;
-  bannedReason?: string;
-  bannedBy?: string; // id of the admin who applied the ban
+  // Moderation ban state is NOT stored on the user record — it lives on its own
+  // key (see lib/banStore) so a concurrent profile write can't clobber a ban.
 };
 
 // Shape exposed to clients — strips secrets.
@@ -128,6 +130,11 @@ export type SessionPayload = {
   // JWT `iat` in SECONDS (set by .setIssuedAt() at signing). Used to reject
   // sessions minted before the user's last password change.
   issuedAt?: number;
+  // Millisecond-resolution issue time (custom claim). passwordChangedAt is stored
+  // in ms, so this lets the DAL revoke a pre-reset session minted in the SAME
+  // second as the reset, which the floored-second `issuedAt` can't disambiguate.
+  // Absent on legacy tokens → DAL falls back to the second-precision comparison.
+  issuedAtMs?: number;
 };
 
 export type PromptSuggestion = {

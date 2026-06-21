@@ -74,6 +74,13 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
   const inflightNudgesRef = useRef<
     Map<string, { dx: number; dy: number } | null>
   >(new Map());
+  // Monotonic request counter, bumped on every nudge mutation. Used to (a) ignore
+  // a poll response that a mutation superseded while it was in flight (which could
+  // otherwise resurrect a just-removed nudge), and (b) keyed per-target, ignore an
+  // older mutation's response that resolves after a newer one (last-write-wins
+  // instead of last-response-wins).
+  const reqSeqRef = useRef(0);
+  const targetSeqRef = useRef<Map<string, number>>(new Map());
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
@@ -130,10 +137,15 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
   }, []);
 
   const fetchToday = useCallback(async () => {
+    const startSeq = reqSeqRef.current;
     try {
       const res = await fetch("/api/today", { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as TodayResponse;
+      // If a nudge mutation was issued while this poll was in flight, its snapshot
+      // is stale (it may predate the mutation) — drop it so it can't resurrect a
+      // just-removed/changed nudge. The mutation's own response is authoritative.
+      if (reqSeqRef.current !== startSeq) return;
       setData(withInflight(json));
       setError(null);
     } catch (e) {
@@ -141,8 +153,13 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
     }
   }, [withInflight]);
 
+  // Once placed, poll for updates. Depend on the placed-ness BOOLEAN, not
+  // data.myPlacement: every /api/today response builds a fresh myPlacement
+  // object, so depending on the object reference tore down and recreated the
+  // interval on every poll, resetting the 3s timer to ~3s+RTT each cycle.
+  const placed = !!data.myPlacement;
   useEffect(() => {
-    if (!data.myPlacement) return;
+    if (!placed) return;
     const id = setInterval(() => {
       // Don't refresh mid-drag; it would race with the optimistic update.
       if (
@@ -153,7 +170,7 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
       }
     }, 3000);
     return () => clearInterval(id);
-  }, [data.myPlacement, fetchToday]);
+  }, [placed, fetchToday]);
 
   async function handlePlace(coords: { x: number; y: number }) {
     if (submitting || data.myPlacement) return;
@@ -219,6 +236,12 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
         Math.hypot(current.dx, current.dy) < NUDGE_REMOVE_THRESHOLD;
       hapticImpact(ImpactStyle.Light);
 
+      // Tag this mutation so out-of-order responses can be discarded: bump the
+      // global counter (invalidates any in-flight poll) and record this as the
+      // latest request for this target.
+      const seq = ++reqSeqRef.current;
+      targetSeqRef.current.set(targetUserId, seq);
+
       // Optimistic update so the marker doesn't flicker. Also stash the
       // optimistic state in inflightNudgesRef so any server response that
       // races with this in-flight POST (another POST returning, or polling)
@@ -253,12 +276,17 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
             });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = (await res.json()) as TodayResponse;
+        // A newer mutation for this target superseded us — drop this stale
+        // response entirely (don't touch the newer request's inflight entry).
+        if (targetSeqRef.current.get(targetUserId) !== seq) return;
         // Drop our entry before merging so the response is authoritative for
         // this target; other still-pending entries get preserved by withInflight.
         inflightNudgesRef.current.delete(targetUserId);
         setData(withInflight(json));
         setError(null);
       } catch (e) {
+        // A newer mutation superseded us — let it own the outcome.
+        if (targetSeqRef.current.get(targetUserId) !== seq) return;
         // On failure, drop the optimistic entry and refetch to revert.
         inflightNudgesRef.current.delete(targetUserId);
         setError(e instanceof Error ? e.message : "nudge failed");
@@ -282,35 +310,18 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nudging?.targetUserId]);
 
-  const handleLongPress = useCallback(
-    (targetUserId: string, clientX: number, clientY: number) => {
-      // A nudge is "where I moved others" — clear any focus so the live drag
-      // renders in the default view instead of fighting the focused set.
-      setFocusedId(null);
-      hapticImpact(ImpactStyle.Light);
-      // Compute initial dx/dy from the long-press location relative to the
-      // target's actual position, so the drag starts at the finger.
-      if (!canvasRef.current) {
-        setNudging({ targetUserId, dx: 0, dy: 0 });
-        return;
-      }
-      const target = dataRef.current.others.find(
-        (p) => p.userId === targetUserId
-      );
-      if (!target) return;
-      const { x, y } = clientToUnit(canvasRef.current, clientX, clientY, {
-        clamp: true,
-      });
-      setNudging({
-        targetUserId,
-        dx: x - target.x,
-        dy: y - target.y,
-      });
-    },
-    []
-  );
-
-  const placed = !!data.myPlacement;
+  const handleLongPress = useCallback((targetUserId: string) => {
+    // A nudge is "where I moved others" — clear any focus so the live drag
+    // renders in the default view instead of fighting the focused set.
+    setFocusedId(null);
+    hapticImpact(ImpactStyle.Light);
+    // Start the drag at the dot's true center (zero offset). Seeding from the
+    // press location instead would give a non-zero initial dx/dy — and a press
+    // landing near the edge of the 44px hit area, then released WITHOUT dragging,
+    // could exceed NUDGE_REMOVE_THRESHOLD and silently post a nudge the user
+    // never made. onMove fills in the real offset once the finger actually moves.
+    setNudging({ targetUserId, dx: 0, dy: 0 });
+  }, []);
 
   // My chosen graph density, applied to every dot in my view.
   const avatarScale = clampAvatarScale(me.avatarScale);
@@ -656,7 +667,7 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
               avatar={p.avatar}
               photoVersion={p.photoVersion}
               scale={avatarScale}
-              onLongPressStart={(cx, cy) => handleLongPress(p.userId, cx, cy)}
+              onLongPressStart={() => handleLongPress(p.userId)}
               onTap={() =>
                 setFocusedId((cur) => (cur === p.userId ? null : p.userId))
               }

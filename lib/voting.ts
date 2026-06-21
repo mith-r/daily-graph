@@ -11,10 +11,13 @@ const ROUND_TTL_SECONDS = 60 * 60 * 24 * 60;
 const LABEL_MAX = 40;
 
 const suggestionsKey = (targetDate: string) => `prompt_suggestions:${targetDate}`;
-const suggestionVotesKey = (targetDate: string, suggestionId: string) =>
-  `prompt_suggestion_votes:${targetDate}:${suggestionId}`;
-const userVoteKey = (targetDate: string, userId: string) =>
-  `prompt_user_vote:${targetDate}:${userId}`;
+// All of a round's votes live in ONE hash: userId -> suggestionId. A vote (or
+// switch) is a single HSET and an unvote a single HDEL, so a user is mapped to
+// exactly one suggestion atomically — no concurrent multi-key race can leave
+// them counted in two suggestions' tallies. Tallies are derived by counting this
+// hash. (Replaces the old per-suggestion vote SETs + per-user vote key; an
+// in-flight round's votes under the old keys are simply not read after deploy.)
+const votesKey = (targetDate: string) => `prompt_votes:${targetDate}`;
 const winnerKey = (targetDate: string) => `prompt_winner:${targetDate}`;
 // Guards the once-per-day rollover of un-chosen suggestions (independent of the
 // winner key, so it still fires on days where nobody voted and no winner is set).
@@ -84,25 +87,24 @@ export async function listSuggestionsWithVotes(
   if (!raw) return [];
   const suggestions = Object.values(raw);
   if (suggestions.length === 0) return [];
-  // When excludeUserIds is given (the admin dashboard), drop those voters from
-  // the tally; otherwise SCARD is enough. Gameplay callers pass nothing, so
-  // winner selection still counts every vote.
+  // Tally from the single votes hash (userId -> suggestionId). When
+  // excludeUserIds is given (the admin dashboard) those voters are dropped from
+  // the count; gameplay callers pass nothing, so winner selection counts every
+  // vote.
   const exclude = opts?.excludeUserIds;
-  const counts = await Promise.all(
-    suggestions.map(async (s) => {
-      const key = suggestionVotesKey(targetDate, s.id);
-      if (!exclude || exclude.size === 0) {
-        return redis.scard(key);
-      }
-      const voters = (await redis.smembers(key)) as string[];
-      let count = 0;
-      for (const id of voters) if (!exclude.has(id)) count++;
-      return count;
-    })
+  const votes = await redis.hgetall<Record<string, string>>(
+    votesKey(targetDate)
   );
-  const withVotes: PromptSuggestionWithVotes[] = suggestions.map((s, i) => ({
+  const tally = new Map<string, number>();
+  if (votes) {
+    for (const [voterId, suggestionId] of Object.entries(votes)) {
+      if (exclude && exclude.has(voterId)) continue;
+      tally.set(suggestionId, (tally.get(suggestionId) ?? 0) + 1);
+    }
+  }
+  const withVotes: PromptSuggestionWithVotes[] = suggestions.map((s) => ({
     ...s,
-    voteCount: counts[i] ?? 0,
+    voteCount: tally.get(s.id) ?? 0,
   }));
   withVotes.sort((a, b) => {
     if (b.voteCount !== a.voteCount) return b.voteCount - a.voteCount;
@@ -116,7 +118,7 @@ export async function getUserVote(
   userId: string
 ): Promise<string | null> {
   const redis = getRedis();
-  const v = await redis.get<string>(userVoteKey(targetDate, userId));
+  const v = await redis.hget<string>(votesKey(targetDate), userId);
   return v ?? null;
 }
 
@@ -165,16 +167,11 @@ export async function setVote(
   const exists = await redis.hexists(suggestionsKey(targetDate), suggestionId);
   if (!exists) return { ok: false, error: "Suggestion not found." };
 
-  const prev = await redis.get<string>(userVoteKey(targetDate, userId));
-  if (prev && prev !== suggestionId) {
-    await redis.srem(suggestionVotesKey(targetDate, prev), userId);
-  }
-  const voteKey = suggestionVotesKey(targetDate, suggestionId);
-  await redis.sadd(voteKey, userId);
-  await redis.expire(voteKey, ROUND_TTL_SECONDS);
-  await redis.set(userVoteKey(targetDate, userId), suggestionId, {
-    ex: ROUND_TTL_SECONDS,
-  });
+  // Single atomic write: set (or switch) this user's vote. Overwriting the same
+  // field guarantees one vote per user, so concurrent switches can't double-count.
+  const key = votesKey(targetDate);
+  await redis.hset(key, { [userId]: suggestionId });
+  await redis.expire(key, ROUND_TTL_SECONDS);
   return { ok: true };
 }
 
@@ -183,11 +180,7 @@ export async function clearVote(
   userId: string
 ): Promise<void> {
   const redis = getRedis();
-  const prev = await redis.get<string>(userVoteKey(targetDate, userId));
-  if (prev) {
-    await redis.srem(suggestionVotesKey(targetDate, prev), userId);
-  }
-  await redis.del(userVoteKey(targetDate, userId));
+  await redis.hdel(votesKey(targetDate), userId);
 }
 
 export async function getWinnerPrompt(
@@ -215,7 +208,11 @@ export async function closeRound(targetDate: string): Promise<Prompt | null> {
       yBottom: top.yBottom,
       yTop: top.yTop,
     };
-    const set = await redis.set(winnerKey(targetDate), prompt, { nx: true });
+    const set = await redis.set(winnerKey(targetDate), prompt, {
+      nx: true,
+      // Expire with the rest of the round's keys instead of living forever.
+      ex: ROUND_TTL_SECONDS,
+    });
     // If we lost the race, fall back to whoever won.
     winner =
       set === "OK"

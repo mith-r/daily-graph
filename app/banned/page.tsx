@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { readSession } from "@/lib/session";
 import { getUserById } from "@/lib/users";
-import { isBanned } from "@/lib/moderation";
+import { getBan } from "@/lib/moderation";
 import { logout } from "@/app/actions/auth";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,9 @@ export const dynamic = "force-dynamic";
 export default async function BannedPage() {
   const session = await readSession();
   const user = session ? await getUserById(session.userId) : null;
-  if (!user || !isBanned(user)) redirect("/");
+  const ban = user ? await getBan(user.id) : null;
+  // A stored ban record always carries bannedAt, so its presence == banned.
+  if (!user || !ban) redirect("/");
 
   return (
     <main className="flex-1 bg-navy text-white flex flex-col items-center justify-center px-6 py-12">
@@ -25,10 +27,10 @@ export default async function BannedPage() {
           A moderator has suspended this account for violating the community
           guidelines. You no longer have access to Daily Graph.
         </p>
-        {user.bannedReason && (
+        {ban.reason && (
           <p className="mt-4 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white/70">
             <span className="text-white/45">Reason: </span>
-            {user.bannedReason}
+            {ban.reason}
           </p>
         )}
         <p className="mt-4 text-xs text-white/40">

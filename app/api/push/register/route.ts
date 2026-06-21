@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { readJson, requireVerified } from "@/lib/http";
-import { addPushToken, removePushToken } from "@/lib/pushTokens";
+import { addPushToken, removePushTokenForUser } from "@/lib/pushTokens";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +46,9 @@ export async function DELETE(req: Request) {
   }
 
   try {
-    await removePushToken(parsed.data.token.toLowerCase());
+    // Owner-scoped: only removes the token if it belongs to the caller. Always
+    // returns ok (idempotent; doesn't reveal whether the token existed/was owned).
+    await removePushTokenForUser(parsed.data.token.toLowerCase(), me.id);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("DELETE /api/push/register failed:", err);

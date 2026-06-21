@@ -51,7 +51,11 @@ export function AnalyticsTracker() {
   }
 
   function flushActiveTime(beacon = false) {
-    if (document.visibilityState !== "visible") return;
+    // No visibility guard here: the hide / pagehide / unmount callers fire AFTER
+    // document.visibilityState has already flipped to "hidden", so guarding on
+    // "visible" would make those (beacon) flushes no-op and drop the trailing
+    // segment of every session. The periodic interval applies the visible check
+    // itself. activeSinceRef === null already means "not actively viewing".
     const startedAt = activeSinceRef.current;
     if (startedAt === null) return;
     const now = Date.now();
@@ -68,7 +72,8 @@ export function AnalyticsTracker() {
     send("pageview");
 
     const id = window.setInterval(() => {
-      flushActiveTime();
+      // Only accrue active time while the tab is actually in the foreground.
+      if (document.visibilityState === "visible") flushActiveTime();
     }, HEARTBEAT_MS);
 
     function onVisibilityChange() {
