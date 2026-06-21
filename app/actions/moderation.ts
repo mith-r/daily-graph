@@ -52,16 +52,14 @@ export async function reportUserAction(
 
 // --- Mod actions (admin-only) ---
 
-export async function banUserAction(
-  reportId: string,
-  reportedUserId: string
-): Promise<void> {
+export async function banUserAction(reportId: string): Promise<void> {
   const admin = await requireAdmin();
+  // Source the ban target from the trusted, server-stored report — never from a
+  // separate client-supplied id, which could be made to diverge from the report
+  // being actioned (ban user A while marking B's report "actioned").
   const report = await getReport(reportId);
-  const reason = report
-    ? reportReasonLabel(report.reason)
-    : "Community guidelines violation";
-  await banUser(reportedUserId, reason, admin.id);
+  if (!report) return;
+  await banUser(report.reportedUserId, reportReasonLabel(report.reason), admin.id);
   await resolveReport(reportId, "actioned", admin.id);
   revalidatePath("/admin");
 }

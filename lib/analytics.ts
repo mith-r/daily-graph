@@ -124,7 +124,22 @@ export async function recordPlacement(date = todayKey()): Promise<void> {
   await incrementDay(date, "placements");
 }
 
-export async function recordVote(date = todayKey()): Promise<void> {
+// Count a vote at most once per (round, user). A vote is freely toggleable
+// (cast → clear → re-cast), so a plain per-cast increment is inflatable by one
+// user repeatedly toggling; an NX marker per (round, user) makes day.votes a
+// true count of distinct voters for the round. The calendar-day counter still
+// reflects the day the (first) vote happened.
+const votedMarkerKey = (round: string, userId: string) =>
+  `analytics:voted:${round}:${userId}`;
+
+export async function recordVote(round: string, userId: string): Promise<void> {
+  const redis = getRedis();
+  const claimed = await redis.set(votedMarkerKey(round, userId), "1", {
+    nx: true,
+    ex: DAY_TTL_SECONDS,
+  });
+  if (claimed !== "OK") return;
+  const date = todayKey();
   await touchDate(date);
   await incrementDay(date, "votes");
 }

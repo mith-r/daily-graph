@@ -3,8 +3,10 @@
 // the command surface this app uses, with the same return-value shapes as
 // @upstash/redis, so the rest of the code is unaware of the swap.
 //
-// Not for production: no persistence (data lives in process memory), no TTLs
-// (expire is a no-op), and scan returns everything in a single page.
+// Not for production: no persistence (data lives in process memory) and scan
+// returns everything in a single page. TTLs ARE honored (lazily, on access) so
+// expiry-dependent logic — OTP codes, resend cooldowns, dedupe keys — behaves
+// the same locally as against real Redis.
 //
 // The backing store is pinned to globalThis so every module/runtime instance in
 // the dev server shares one store (instrumentation seeding + request handlers).
@@ -14,12 +16,40 @@ type ZSet = Map<string, number>; // member -> score
 
 type Store = Map<string, unknown>;
 
-const g = globalThis as unknown as { __memRedisStore?: Store };
+const g = globalThis as unknown as {
+  __memRedisStore?: Store;
+  __memRedisExpiries?: Map<string, number>;
+};
 const store: Store = g.__memRedisStore ?? (g.__memRedisStore = new Map());
+// key -> epoch-ms at which it expires (absent = no TTL).
+const expiries: Map<string, number> =
+  g.__memRedisExpiries ?? (g.__memRedisExpiries = new Map());
 
 function clone<T>(v: T): T {
   if (v === null || typeof v !== "object") return v;
   return structuredClone(v);
+}
+
+// Lazily evict an expired key before any read/write touches it, so a key with a
+// past TTL reads as absent (matching real Redis) even though we never run a
+// background sweep.
+function evict(key: string): void {
+  const exp = expiries.get(key);
+  if (exp !== undefined && Date.now() >= exp) {
+    store.delete(key);
+    expiries.delete(key);
+  }
+}
+
+function setExpiry(key: string, seconds?: number): void {
+  // A plain SET (no ex) clears any existing TTL, like real Redis.
+  if (seconds && seconds > 0) expiries.set(key, Date.now() + seconds * 1000);
+  else expiries.delete(key);
+}
+
+function dropKey(key: string): void {
+  store.delete(key);
+  expiries.delete(key);
 }
 
 function globToRegExp(glob: string): RegExp {
@@ -33,6 +63,7 @@ function resolveIndex(i: number, len: number): number {
 
 class MemoryRedis {
   async get<T = unknown>(key: string): Promise<T | null> {
+    evict(key);
     return store.has(key) ? (clone(store.get(key)) as T) : null;
   }
 
@@ -45,7 +76,10 @@ class MemoryRedis {
         ? keysOrArray[0]
         : keysOrArray
     ) as string[];
-    return keys.map((k) => (store.has(k) ? (clone(store.get(k)) as T) : null));
+    return keys.map((k) => {
+      evict(k);
+      return store.has(k) ? (clone(store.get(k)) as T) : null;
+    });
   }
 
   async set(
@@ -53,19 +87,26 @@ class MemoryRedis {
     value: unknown,
     opts?: { nx?: boolean; ex?: number }
   ): Promise<"OK" | null> {
+    evict(key); // an expired key must not block an NX set
     if (opts?.nx && store.has(key)) return null;
     store.set(key, clone(value));
+    setExpiry(key, opts?.ex);
     return "OK";
   }
 
   async del(...keys: string[]): Promise<number> {
     let n = 0;
-    for (const k of keys) if (store.delete(k)) n++;
+    for (const k of keys) {
+      evict(k);
+      if (store.delete(k)) n++;
+      expiries.delete(k);
+    }
     return n;
   }
 
   // --- Hashes ---
   private hash(key: string, create = false): Hash | undefined {
+    evict(key);
     let h = store.get(key) as Hash | undefined;
     if (!h && create) {
       h = new Map();
@@ -98,6 +139,16 @@ class MemoryRedis {
     return added;
   }
 
+  // Set a field only if it doesn't already exist — atomic "claim" used to make
+  // first-placement-of-the-day exactly-once. Returns 1 if created, 0 if the
+  // field was already present (matches @upstash/redis HSETNX).
+  async hsetnx(key: string, field: string, value: unknown): Promise<number> {
+    const h = this.hash(key, true)!;
+    if (h.has(field)) return 0;
+    h.set(field, clone(value));
+    return 1;
+  }
+
   async hincrby(key: string, field: string, increment: number): Promise<number> {
     const h = this.hash(key, true)!;
     const current = Number(h.get(field) ?? 0);
@@ -111,7 +162,7 @@ class MemoryRedis {
     if (!h) return 0;
     let n = 0;
     for (const f of fields) if (h.delete(f)) n++;
-    if (h.size === 0) store.delete(key);
+    if (h.size === 0) dropKey(key);
     return n;
   }
 
@@ -121,6 +172,7 @@ class MemoryRedis {
 
   // --- Sets ---
   private set_(key: string, create = false): Set<string> | undefined {
+    evict(key);
     let s = store.get(key) as Set<string> | undefined;
     if (!s && create) {
       s = new Set();
@@ -145,7 +197,7 @@ class MemoryRedis {
     if (!s) return 0;
     let n = 0;
     for (const m of members) if (s.delete(m)) n++;
-    if (s.size === 0) store.delete(key);
+    if (s.size === 0) dropKey(key);
     return n;
   }
 
@@ -164,6 +216,7 @@ class MemoryRedis {
 
   // --- Sorted sets ---
   private zset(key: string, create = false): ZSet | undefined {
+    evict(key);
     let z = store.get(key) as ZSet | undefined;
     if (!z && create) {
       z = new Map();
@@ -220,7 +273,7 @@ class MemoryRedis {
     const e = resolveIndex(stop, members.length);
     const toRemove = members.slice(s, e + 1);
     for (const m of toRemove) z.delete(m);
-    if (z.size === 0) store.delete(key);
+    if (z.size === 0) dropKey(key);
     return toRemove.length;
   }
 
@@ -230,13 +283,19 @@ class MemoryRedis {
     opts?: { match?: string; count?: number }
   ): Promise<[string, string[]]> {
     const re = opts?.match ? globToRegExp(opts.match) : null;
-    const keys = [...store.keys()].filter((k) => (re ? re.test(k) : true));
+    const keys = [...store.keys()].filter((k) => {
+      evict(k);
+      if (!store.has(k)) return false;
+      return re ? re.test(k) : true;
+    });
     return ["0", keys]; // single page; cursor "0" ends the caller's loop
   }
 
-  async expire(key: string, _seconds: number): Promise<number> {
-    void _seconds;
-    return store.has(key) ? 1 : 0; // TTLs are a no-op in the dev stub
+  async expire(key: string, seconds: number): Promise<number> {
+    evict(key);
+    if (!store.has(key)) return 0;
+    setExpiry(key, seconds);
+    return 1;
   }
 }
 

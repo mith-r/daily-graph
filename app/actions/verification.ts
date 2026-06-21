@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { requireAccount } from "@/lib/dal";
 import { createSession } from "@/lib/session";
 import { checkOtp, invalidateOtp, issueOtp } from "@/lib/otp";
@@ -167,20 +168,28 @@ export async function requestPasswordResetAction(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  const user = await getUserByEmail(parsed.data.email);
-  if (user) {
-    // Rate-limit by requested email so unknown addresses are bounded too.
-    // Errors (cooldown, rate limit, send failure) are deliberately swallowed:
-    // revealing them would leak whether the account exists.
+  const email = parsed.data.email;
+  // Do ALL existence-dependent work (the user lookup AND the issue+email) AFTER
+  // the response is sent. The lookup itself is timing-sensitive — an existing
+  // account costs two Redis round-trips (email→id, id→user) vs one for an
+  // unknown address — so keeping it (not just the email send) out of the
+  // synchronous path is what actually makes the response constant-time. after()
+  // still runs reliably within the function lifetime, so the email is sent;
+  // errors are swallowed for anti-enumeration, and the per-email limiterKey
+  // bounds probing of an address that does exist.
+  after(async () => {
+    const user = await getUserByEmail(email);
+    if (!user) return;
     await issueOtp({
       purpose: "reset-password",
       userId: user.id,
       email: user.email,
-      limiterKey: parsed.data.email,
+      limiterKey: email,
     });
-  }
-  // Anti-enumeration: identical response whether or not the account exists.
-  return { sent: true, email: parsed.data.email };
+  });
+  // Anti-enumeration: identical, constant-time response whether or not the
+  // account exists.
+  return { sent: true, email };
 }
 
 export async function resetPasswordAction(

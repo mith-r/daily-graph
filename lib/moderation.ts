@@ -1,7 +1,13 @@
 import "server-only";
 import { getRedis } from "./redis";
 import { getUserById } from "./users";
-import type { Report, ReportReason, ReportStatus, User } from "./types";
+import { clearBan, setBan } from "./banStore";
+import type { Report, ReportReason, ReportStatus } from "./types";
+
+// Re-exported so existing callers (the DAL, admin/banned pages) keep importing
+// ban helpers from lib/moderation. Authoritative storage lives in lib/banStore.
+export { getBan, getBannedIds, isBanned } from "./banStore";
+export type { BanState } from "./banStore";
 
 // Moderation storage. Reports are flagged by users and reviewed by mods on the
 // admin dashboard; a mod can ban the reported account, which locks them out
@@ -19,12 +25,6 @@ const OPEN_REPORTS_KEY = "reports:open";
 // audit trail, not ephemeral.
 const dedupeKey = (reporterId: string, reportedUserId: string) =>
   `report:dedupe:${reporterId}:${reportedUserId}`;
-// Mirrors lib/users.ts's userKey so we can write ban state back onto the record.
-const userKey = (id: string) => `user:${id}`;
-
-export function isBanned(user: User | null | undefined): boolean {
-  return !!user?.bannedAt;
-}
 
 export async function createReport(input: {
   reporterId: string;
@@ -54,8 +54,17 @@ export async function createReport(input: {
     createdAt: Date.now(),
     status: "open",
   };
-  await redis.set(reportKey(report.id), report);
-  await redis.sadd(OPEN_REPORTS_KEY, report.id);
+  try {
+    await redis.set(reportKey(report.id), report);
+    await redis.sadd(OPEN_REPORTS_KEY, report.id);
+  } catch (err) {
+    // The dedupe key was reserved with no TTL; if the report write fails we'd
+    // otherwise leave an orphan lock that blocks this reporter forever (nothing
+    // ever clears it, since resolveReport needs a report that doesn't exist).
+    // Release it so the report can be retried.
+    await redis.del(dedupeKey(input.reporterId, input.reportedUserId));
+    throw err;
+  }
   return { ok: true };
 }
 
@@ -88,6 +97,12 @@ export async function resolveReport(
     report.resolvedBy = adminId;
     report.resolvedAt = Date.now();
     await redis.set(reportKey(id), report);
+    // Release the (reporter, target) dedupe guard now that the report is closed,
+    // so the same reporter can flag this account again for a NEW incident (a
+    // dismissed false-alarm reoffends, or a banned-then-unbanned user reoffends).
+    // Without this the guard is permanent and every later report is silently
+    // swallowed, letting repeat offenders escape moderation.
+    await redis.del(dedupeKey(report.reporterId, report.reportedUserId));
   }
   // Pull it off the queue regardless so a stale/missing record can't get stuck.
   await redis.srem(OPEN_REPORTS_KEY, id);
@@ -98,25 +113,19 @@ export async function banUser(
   reason: string,
   adminId: string
 ): Promise<{ ok: true } | { error: string }> {
-  const redis = getRedis();
   const user = await getUserById(userId);
   if (!user) return { error: "User not found." };
-  user.bannedAt = Date.now();
-  user.bannedReason = reason;
-  user.bannedBy = adminId;
-  await redis.set(userKey(userId), user);
+  // Authoritative ban state lives on its own key (lib/banStore) so a concurrent
+  // profile edit by the target can't clobber it via the shared user record.
+  await setBan(userId, reason, adminId);
   return { ok: true };
 }
 
 export async function unbanUser(
   userId: string
 ): Promise<{ ok: true } | { error: string }> {
-  const redis = getRedis();
   const user = await getUserById(userId);
   if (!user) return { error: "User not found." };
-  delete user.bannedAt;
-  delete user.bannedReason;
-  delete user.bannedBy;
-  await redis.set(userKey(userId), user);
+  await clearBan(userId);
   return { ok: true };
 }

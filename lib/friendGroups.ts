@@ -25,10 +25,18 @@ export function makeGroupId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+// Bounds so a crafted server-action / localStorage payload can't store an
+// unbounded blob under user:<id>:friend-groups (mirrors the report/photo caps).
+const MAX_GROUPS = 50;
+const MAX_GROUP_NAME = 40;
+const MAX_GROUP_ID = 128;
+const MAX_GROUP_MEMBERS = 1000;
+
 // Validate an untrusted value (parsed JSON from localStorage, a client-supplied
 // server-action payload, a stored Redis value) into FriendGroup[]. Drops
 // anything malformed rather than throwing, so a corrupt entry can't break the
-// UI or poison storage.
+// UI or poison storage. Also enforces size caps and a non-empty name (the UI
+// requires one; a crafted payload must not bypass that).
 export function coerceFriendGroups(parsed: unknown): FriendGroup[] {
   if (!Array.isArray(parsed)) return [];
   return parsed
@@ -50,12 +58,28 @@ export function coerceFriendGroups(parsed: unknown): FriendGroup[] {
       ) {
         return null;
       }
-      const userIds = candidate.userIds.filter(
-        (id): id is string => typeof id === "string"
-      );
-      return { id: candidate.id, name: candidate.name, userIds };
+      // Reject a blank id — the UI keys groups by id (and matches the editing
+      // group by id), so two empty-id groups would collide (dup React keys,
+      // edit-the-wrong-group). Real groups always have a UUID.
+      const id = candidate.id.trim().slice(0, MAX_GROUP_ID);
+      if (!id) return null;
+      // Never DROP a group for an empty name — that would lose the group AND its
+      // members when a user transiently clears the name field to retype it (the
+      // debounced save / unmount flush could persist the blank mid-edit). Fall
+      // back to a placeholder so the data survives; a real name overwrites it on
+      // the next keystroke. (This still prevents a truly blank label.)
+      const name =
+        candidate.name.trim().slice(0, MAX_GROUP_NAME) || "Untitled group";
+      // Dedupe members and cap their count.
+      const userIds = [
+        ...new Set(
+          candidate.userIds.filter((id): id is string => typeof id === "string")
+        ),
+      ].slice(0, MAX_GROUP_MEMBERS);
+      return { id, name, userIds };
     })
-    .filter((group): group is FriendGroup => group !== null);
+    .filter((group): group is FriendGroup => group !== null)
+    .slice(0, MAX_GROUPS);
 }
 
 // Validate an untrusted localStorage string payload into FriendGroup[].

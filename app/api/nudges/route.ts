@@ -9,8 +9,11 @@ import { buildTodayResponse } from "@/lib/today";
 export const dynamic = "force-dynamic";
 
 function parseFiniteNumber(v: unknown): number | null {
-  const n = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(n) ? n : null;
+  // Require a genuine finite number — don't Number()-coerce true/""/[]/null into
+  // 0/1 (matches the placements clamp), so junk offsets 400 instead of silently
+  // moving a friend's dot.
+  if (typeof v !== "number" || !Number.isFinite(v)) return null;
+  return v;
 }
 
 export async function POST(req: Request) {
@@ -23,6 +26,11 @@ export async function POST(req: Request) {
   try {
     data = await req.json();
   } catch {
+    return NextResponse.json({ error: "bad json" }, { status: 400 });
+  }
+  // JSON.parse("null") succeeds (and arrays/primitives parse too); guard before
+  // reading properties so a `null` body returns 400 rather than throwing a 500.
+  if (data === null || typeof data !== "object") {
     return NextResponse.json({ error: "bad json" }, { status: 400 });
   }
   const body = data as { targetUserId?: unknown; dx?: unknown; dy?: unknown };
