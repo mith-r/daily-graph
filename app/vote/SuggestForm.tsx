@@ -89,7 +89,7 @@ export function SuggestForm() {
           <p className="text-xs text-red-400">{state.error}</p>
         )}
         {state?.success && (
-          <p className="text-xs text-green-400">Submitted.</p>
+          <p className="text-xs text-emerald-400">Submitted.</p>
         )}
       </div>
     </form>

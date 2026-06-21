@@ -1,6 +1,6 @@
 import "server-only";
 import { getRedis } from "./redis";
-import { addDays, todayKey } from "./date";
+import { addDays, dateKeyToUTC, todayKey } from "./date";
 
 const DAY_TTL_SECONDS = 60 * 60 * 24 * 90;
 const DEDUPE_TTL_SECONDS = 60 * 10;
@@ -9,7 +9,7 @@ const RECENT_DAYS = 30;
 
 export type AnalyticsEvent = "pageview" | "heartbeat";
 
-export type AnalyticsDay = {
+type AnalyticsDay = {
   date: string;
   activeUsers: number;
   pageViews: number;
@@ -20,7 +20,7 @@ export type AnalyticsDay = {
   votes: number;
 };
 
-export type AnalyticsSummary = {
+type AnalyticsSummary = {
   today: AnalyticsDay;
   recentDays: AnalyticsDay[];
   dau7: number;
@@ -34,14 +34,6 @@ const activeUsersKey = (date: string) => `analytics:active_users:${date}`;
 const dedupeKey = (eventId: string) => `analytics:event:${eventId}`;
 const datesKey = "analytics:dates";
 
-function dateScore(date: string): number {
-  return Date.UTC(
-    Number(date.slice(0, 4)),
-    Number(date.slice(5, 7)) - 1,
-    Number(date.slice(8, 10))
-  );
-}
-
 function numberField(
   raw: Record<string, unknown> | null,
   field: keyof Omit<AnalyticsDay, "date" | "activeUsers">
@@ -54,7 +46,8 @@ function numberField(
 async function touchDate(date: string): Promise<void> {
   const redis = getRedis();
   await Promise.all([
-    redis.zadd(datesKey, { score: dateScore(date), member: date }),
+    // Score the date set by UTC-midnight millis so it sorts chronologically.
+    redis.zadd(datesKey, { score: dateKeyToUTC(date), member: date }),
     redis.expire(dayKey(date), DAY_TTL_SECONDS),
     redis.expire(activeUsersKey(date), DAY_TTL_SECONDS),
   ]);
@@ -162,7 +155,7 @@ async function countActiveUsers(
   return count;
 }
 
-export async function getAnalyticsDay(
+async function getAnalyticsDay(
   date: string,
   excludeUserIds?: ReadonlySet<string>
 ): Promise<AnalyticsDay> {

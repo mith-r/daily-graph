@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/admin";
 import { recordVote } from "@/lib/analytics";
-import { getVerifiedUser } from "@/lib/dal";
+import { readJson, requireVerified } from "@/lib/http";
 import {
   clearVote,
   getUserVote,
@@ -14,10 +14,8 @@ import type { VoteState } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const me = await getVerifiedUser();
-  if (!me) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const me = await requireVerified();
+  if (me instanceof NextResponse) return me;
   const targetDate = openRoundDate();
   const [suggestions, myVote] = await Promise.all([
     listSuggestionsWithVotes(targetDate),
@@ -30,17 +28,11 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const me = await getVerifiedUser();
-  if (!me) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const me = await requireVerified();
+  if (me instanceof NextResponse) return me;
 
-  let data: unknown;
-  try {
-    data = await req.json();
-  } catch {
-    return NextResponse.json({ error: "bad json" }, { status: 400 });
-  }
+  const data = await readJson(req);
+  if (data instanceof NextResponse) return data;
   // Guard `null`/non-object bodies before property access (typeof null ===
   // "object", so the explicit null check is required) — otherwise a 500.
   if (data === null || typeof data !== "object") {

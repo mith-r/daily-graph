@@ -60,7 +60,7 @@ function normalizeLabel(raw: unknown): string | null {
   return trimmed;
 }
 
-export function validateSuggestion(
+function validateSuggestion(
   input: SuggestionInput
 ): { ok: true; value: Required<SuggestionInput> } | { ok: false; error: string } {
   const xLeft = normalizeLabel(input.xLeft);
@@ -135,15 +135,9 @@ export async function addSuggestion(
     suggestionsKey(targetDate)
   );
   if (existing) {
-    for (const s of Object.values(existing)) {
-      if (
-        s.xLeft.toLowerCase() === v.value.xLeft.toLowerCase() &&
-        s.xRight.toLowerCase() === v.value.xRight.toLowerCase() &&
-        s.yBottom.toLowerCase() === v.value.yBottom.toLowerCase() &&
-        s.yTop.toLowerCase() === v.value.yTop.toLowerCase()
-      ) {
-        return { ok: false, error: "That prompt has already been suggested." };
-      }
+    const seen = new Set(Object.values(existing).map(sigKey));
+    if (seen.has(sigKey(v.value))) {
+      return { ok: false, error: "That prompt has already been suggested." };
     }
   }
 

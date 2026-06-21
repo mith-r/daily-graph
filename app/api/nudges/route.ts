@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { todayKey } from "@/lib/date";
-import { getVerifiedUser } from "@/lib/dal";
+import { readJson, requireVerified, toFiniteNumber } from "@/lib/http";
 import { getFriendIds } from "@/lib/users";
 import { getPlacement } from "@/lib/placements";
 import { removeNudge, setNudge } from "@/lib/nudges";
@@ -8,26 +8,12 @@ import { buildTodayResponse } from "@/lib/today";
 
 export const dynamic = "force-dynamic";
 
-function parseFiniteNumber(v: unknown): number | null {
-  // Require a genuine finite number — don't Number()-coerce true/""/[]/null into
-  // 0/1 (matches the placements clamp), so junk offsets 400 instead of silently
-  // moving a friend's dot.
-  if (typeof v !== "number" || !Number.isFinite(v)) return null;
-  return v;
-}
-
 export async function POST(req: Request) {
-  const me = await getVerifiedUser();
-  if (!me) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const me = await requireVerified();
+  if (me instanceof NextResponse) return me;
 
-  let data: unknown;
-  try {
-    data = await req.json();
-  } catch {
-    return NextResponse.json({ error: "bad json" }, { status: 400 });
-  }
+  const data = await readJson(req);
+  if (data instanceof NextResponse) return data;
   // JSON.parse("null") succeeds (and arrays/primitives parse too); guard before
   // reading properties so a `null` body returns 400 rather than throwing a 500.
   if (data === null || typeof data !== "object") {
@@ -40,8 +26,8 @@ export async function POST(req: Request) {
   if (body.targetUserId === me.id) {
     return NextResponse.json({ error: "cannot nudge self" }, { status: 400 });
   }
-  const dxRaw = parseFiniteNumber(body.dx);
-  const dyRaw = parseFiniteNumber(body.dy);
+  const dxRaw = toFiniteNumber(body.dx);
+  const dyRaw = toFiniteNumber(body.dy);
   if (dxRaw === null || dyRaw === null) {
     return NextResponse.json({ error: "invalid offset" }, { status: 400 });
   }
@@ -81,10 +67,8 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const me = await getVerifiedUser();
-  if (!me) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const me = await requireVerified();
+  if (me instanceof NextResponse) return me;
 
   const url = new URL(req.url);
   const targetUserId = url.searchParams.get("targetUserId");

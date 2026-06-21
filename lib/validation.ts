@@ -112,7 +112,7 @@ export const AvatarConfigSchema = z.object({
 // of a known image type, and cap the decoded size so a crafted POST can't store
 // an unbounded blob in Redis. ~400 KB comfortably fits the ~20–40 KB the client
 // produces while leaving headroom.
-export const MAX_PHOTO_BYTES = 400_000;
+const MAX_PHOTO_BYTES = 400_000;
 
 const PHOTO_DATA_URL_RE = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/;
 
@@ -143,6 +143,8 @@ export const ReportSchema = z.object({
   context: z.string().trim().max(300).optional(),
 });
 
-export type SignupInput = z.infer<typeof SignupSchema>;
-export type LoginInput = z.infer<typeof LoginSchema>;
-export type ReportInput = z.infer<typeof ReportSchema>;
+// Pull the first Zod issue's message (or a fallback) for actions that surface a
+// single error string rather than per-field errors.
+export function firstIssueMessage(error: z.ZodError, fallback: string): string {
+  return error.issues[0]?.message ?? fallback;
+}

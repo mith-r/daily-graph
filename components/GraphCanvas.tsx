@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, type ReactNode } from "react";
+import { clientToUnit } from "@/lib/graph";
 import type { Prompt } from "@/lib/types";
 
 type Props = {
@@ -37,12 +38,7 @@ export function GraphCanvas({
       return;
     }
     if (!onPlace || !internalRef.current) return;
-    const rect = internalRef.current.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / rect.width; // 0..1
-    const py = (e.clientY - rect.top) / rect.height; // 0..1
-    const x = px * 2 - 1;
-    const y = 1 - py * 2; // invert: top of screen = +1
-    onPlace({ x, y });
+    onPlace(clientToUnit(internalRef.current, e.clientX, e.clientY));
   }
 
   return (

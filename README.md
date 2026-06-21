@@ -63,7 +63,8 @@ auth, and data-model decisions that keep a shared, real-time-ish board correct u
   counter and back-fills itself on every placement.
 - **Genuinely cross-platform.** A single Next.js deployment serves the web app and the
   Capacitor iOS shell (a remote-URL WKWebView), with haptics on nudge drags, APNs push, and a
-  daily push fan-out driven by a Vercel Cron job.
+  daily push fan-out driven by a Vercel Cron job. See [`docs/IOS_SETUP.md`](docs/IOS_SETUP.md)
+  for building and signing the iOS app.
 - **Zero-dependency local mode.** An in-memory Redis stub that faithfully honors TTLs (so OTP
   expiry, cooldowns, and rate limits behave exactly as in production) plus an auth-bypass flag
   let the whole app run with no external services — `git clone` to running in one command.
@@ -152,7 +153,8 @@ USE_IN_MEMORY_REDIS=1 DEBUG_BYPASS_AUTH=1 SESSION_SECRET=$(openssl rand -hex 32)
 ```
 
 Then open <http://localhost:3004>. For dev flags, the admin dashboard, Resend email setup, the
-full environment-variable reference, and deployment notes, see **[SETUP.md](./SETUP.md)**.
+full environment-variable reference, and deployment notes, see **[SETUP.md](./SETUP.md)**; for
+building and running the iOS app, see **[docs/IOS_SETUP.md](docs/IOS_SETUP.md)**.
 
 ---
 
