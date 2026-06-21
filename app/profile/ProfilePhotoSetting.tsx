@@ -179,6 +179,13 @@ export function ProfilePhotoSetting({
       setSrc(url);
       setEditing(true);
     };
+    img.onerror = () => {
+      // A non-decodable pick (corrupt file, or a renamed non-image) never fires
+      // onload, which would otherwise leave "Choose a photo" silently doing
+      // nothing. Surface feedback and release the object URL.
+      revokeUrl();
+      setError("Couldn't read that image. Please try a JPEG or PNG.");
+    };
     img.src = url;
   };
 

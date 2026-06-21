@@ -130,12 +130,34 @@ function castStartIndex(dateKey: string, poolSize: number): number {
   return start;
 }
 
+// Per-process memo keyed by dateKey. castStartIndex replays every day since the
+// epoch (O(days-since-epoch), ~20k iterations and growing forever), and this runs
+// synchronously on the hot path for every home-page load and every /api/today
+// poll — so without caching its cost is paid thousands of times a day and creeps
+// up permanently. A tiny module-level cache collapses that to once per date per
+// process (React's request-scoped cache() wouldn't dedupe across separate polls).
+const placementsCache = new Map<string, Placement[]>();
+const PLACEMENTS_CACHE_MAX = 8;
+
 // Today's celebrity placements. Deterministic per date: a date-sized window
 // slides through the stable ordering, and each member's (x, y) is seeded by the
 // date. Because each day starts after the previous day's window, consecutive
 // days never share a name (including across the wrap). Everyone sees the same
 // thing all day; it rotates tomorrow.
 export function getCelebrityPlacements(dateKey: string): Placement[] {
+  const cached = placementsCache.get(dateKey);
+  if (cached) return cached;
+  const computed = computeCelebrityPlacements(dateKey);
+  if (placementsCache.size >= PLACEMENTS_CACHE_MAX) {
+    // Drop the oldest entry (insertion order) to keep the cache bounded.
+    const oldest = placementsCache.keys().next().value;
+    if (oldest !== undefined) placementsCache.delete(oldest);
+  }
+  placementsCache.set(dateKey, computed);
+  return computed;
+}
+
+function computeCelebrityPlacements(dateKey: string): Placement[] {
   const n = ORDERED.length;
   const size = dailyCastSize(dateKey);
   const start = castStartIndex(dateKey, n);

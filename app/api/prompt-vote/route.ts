@@ -41,6 +41,11 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "bad json" }, { status: 400 });
   }
+  // Guard `null`/non-object bodies before property access (typeof null ===
+  // "object", so the explicit null check is required) — otherwise a 500.
+  if (data === null || typeof data !== "object") {
+    return NextResponse.json({ error: "invalid suggestionId" }, { status: 400 });
+  }
   const body = data as { suggestionId?: unknown };
   const suggestionId =
     typeof body.suggestionId === "string" ? body.suggestionId : null;
@@ -58,8 +63,11 @@ export async function POST(req: Request) {
       if (!result.ok) {
         return NextResponse.json({ error: result.error }, { status: 400 });
       }
+      // Count each voter at most once per round (recordVote dedupes via an NX
+      // marker), so switching A→B or toggling off then on can't inflate the
+      // daily counter.
       if (!isAdminUser(me)) {
-        await recordVote().catch((err) => {
+        await recordVote(targetDate, me.id).catch((err) => {
           console.error("analytics vote counter failed:", err);
         });
       }

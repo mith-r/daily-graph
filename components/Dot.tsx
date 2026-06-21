@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { colorFor, toPct } from "@/lib/graph";
 import { useLongPress } from "@/lib/useLongPress";
@@ -78,11 +79,18 @@ export function Dot({
       ? CELEB_GOLD
       : colorProp ?? colorFor(userId);
   const interactive = !!onLongPressStart || !!onTap;
+  // If the photo fails to load (e.g. /api/avatar 404s because the owner removed
+  // it between polls, or a transient version skew), fall back to the bitmoji/dot
+  // instead of showing a broken-image glyph. Tracked by version so a fresh
+  // upload (new version) retries rather than staying stuck on the failure.
+  const [failedPhotoVersion, setFailedPhotoVersion] = useState<number | null>(
+    null
+  );
   // Celebrities keep their gold dots; everyone else who has designed a face
   // shows it. Without a face we fall back to the plain colored dot. An uploaded
   // photo (when present) wins over the designed face.
   const photoSrc =
-    !isCelebrity && photoVersion != null
+    !isCelebrity && photoVersion != null && photoVersion !== failedPhotoVersion
       ? `/api/avatar?id=${encodeURIComponent(userId)}&v=${photoVersion}`
       : null;
   const face = !isCelebrity && !photoSrc && avatar ? avatar : null;
@@ -129,6 +137,7 @@ export function Dot({
               alt=""
               width={avatarSize}
               height={avatarSize}
+              onError={() => setFailedPhotoVersion(photoVersion ?? null)}
               style={{
                 display: "block",
                 width: avatarSize,

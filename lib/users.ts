@@ -1,6 +1,7 @@
 import "server-only";
 import bcrypt from "bcryptjs";
 import { getRedis } from "./redis";
+import { getFriendGroups, setFriendGroups } from "./friendGroupsStore";
 import { DEBUG_USER } from "./debug";
 import type { AvatarConfig, FriendSummary, PublicUser, User } from "./types";
 
@@ -77,17 +78,28 @@ export async function createUser(input: {
     return { error: "That username is taken." };
   }
 
-  const user: User = {
-    id: tempId,
-    email,
-    username,
-    displayName: input.displayName.trim(),
-    passwordHash: await bcrypt.hash(input.password, BCRYPT_ROUNDS),
-    createdAt: Date.now(),
-  };
-  await redis.set(userKey(tempId), user);
-  await redis.sadd(ALL_USERS_KEY, tempId);
-  return user;
+  // From here both keys are reserved. If hashing or the record write throws, roll
+  // BOTH back — otherwise the email/username stay permanently "taken" pointing at
+  // a tempId with no user record behind it (unregisterable, unusable).
+  try {
+    const user: User = {
+      id: tempId,
+      email,
+      username,
+      displayName: input.displayName.trim(),
+      passwordHash: await bcrypt.hash(input.password, BCRYPT_ROUNDS),
+      createdAt: Date.now(),
+    };
+    await redis.set(userKey(tempId), user);
+    await redis.sadd(ALL_USERS_KEY, tempId);
+    return user;
+  } catch (err) {
+    await Promise.all([
+      redis.del(emailKey(email)),
+      redis.del(usernameKey(username)),
+    ]);
+    throw err;
+  }
 }
 
 export async function verifyPassword(
@@ -171,7 +183,14 @@ export async function updatePhoto(
   const user = await getUserById(userId);
   if (!user) return { error: "User not found." };
   await redis.set(photoKey(userId), dataUrl);
-  user.photoVersion = (user.photoVersion ?? 0) + 1;
+  // Advance a monotonic sequence that survives removals, so a replacement photo
+  // ALWAYS lands on a fresh ?v= URL. Reusing a number (which `photoVersion ?? 0`
+  // did after a removal reset it) would serve the new bytes at a URL friends'
+  // browsers cached immutably for a year → they'd see the old/deleted photo.
+  // Seed from the legacy photoVersion so existing accounts keep counting up.
+  const nextSeq = (user.photoSeq ?? user.photoVersion ?? 0) + 1;
+  user.photoSeq = nextSeq;
+  user.photoVersion = nextSeq;
   await redis.set(userKey(userId), user);
   return { ok: true };
 }
@@ -184,6 +203,8 @@ export async function removePhoto(
   const user = await getUserById(userId);
   if (!user) return { error: "User not found." };
   await redis.del(photoKey(userId));
+  // Clear photoVersion (the "has a photo" presence signal) but KEEP photoSeq so
+  // the next upload increments past every version already cached by viewers.
   delete user.photoVersion;
   await redis.set(userKey(userId), user);
   return { ok: true };
@@ -200,11 +221,20 @@ export async function getUserPhoto(userId: string): Promise<string | null> {
 // (refreshed every few seconds), so MGET keeps it to one request regardless of
 // friend count. Order is preserved; returns empty info for ids whose user is
 // missing. The photo bytes are NOT fetched here — only the small photoVersion
-// rides along, so the poll stays tiny.
+// rides along, so the poll stays tiny. displayName also rides along so the graph
+// can show the owner's CURRENT name rather than the one snapshotted at placement.
 export async function getUserAvatars(
   ids: string[]
-): Promise<Map<string, { avatar?: AvatarConfig; photoVersion?: number }>> {
-  const map = new Map<string, { avatar?: AvatarConfig; photoVersion?: number }>();
+): Promise<
+  Map<
+    string,
+    { avatar?: AvatarConfig; photoVersion?: number; displayName?: string }
+  >
+> {
+  const map = new Map<
+    string,
+    { avatar?: AvatarConfig; photoVersion?: number; displayName?: string }
+  >();
   if (ids.length === 0) return map;
   const redis = getRedis();
   const users = await redis.mget<(User | null)[]>(ids.map((id) => userKey(id)));
@@ -212,6 +242,7 @@ export async function getUserAvatars(
     map.set(id, {
       avatar: users[i]?.avatar ?? undefined,
       photoVersion: users[i]?.photoVersion ?? undefined,
+      displayName: users[i]?.displayName ?? undefined,
     })
   );
   return map;
@@ -492,7 +523,27 @@ export async function removeFriend(
   await Promise.all([
     redis.srem(friendsKey(userId), friendId),
     redis.srem(friendsKey(friendId), userId),
+    // Drop the now-ex-friend from each side's saved filter groups, so a group
+    // can't keep a dangling non-friend id (which inflates its member count and
+    // would silently re-add them if they're ever friended again).
+    removeFromFriendGroups(userId, friendId),
+    removeFromFriendGroups(friendId, userId),
   ]);
+}
+
+// Strip `memberId` from every one of `ownerId`'s saved friend-filter groups.
+async function removeFromFriendGroups(
+  ownerId: string,
+  memberId: string
+): Promise<void> {
+  const groups = await getFriendGroups(ownerId);
+  let changed = false;
+  const next = groups.map((g) => {
+    if (!g.userIds.includes(memberId)) return g;
+    changed = true;
+    return { ...g, userIds: g.userIds.filter((id) => id !== memberId) };
+  });
+  if (changed) await setFriendGroups(ownerId, next);
 }
 
 export { toPublic };

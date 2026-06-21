@@ -49,16 +49,59 @@ export function FriendGroupsManager({
   // Persist to the server shortly after edits settle. Skips the initial mount so
   // we don't immediately re-write the groups we were just handed.
   const skipSave = useRef(true);
+  // Latest groups + whether a debounced save is still pending, so we can flush on
+  // unmount instead of dropping an edit made within the 400ms window when the
+  // user navigates away.
+  const latestGroupsRef = useRef(groups);
+  const pendingSaveRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
+    latestGroupsRef.current = groups;
     if (skipSave.current) {
       skipSave.current = false;
       return;
     }
-    const timer = setTimeout(() => {
+    pendingSaveRef.current = true;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      pendingSaveRef.current = false;
       void saveFriendGroupsAction(groups);
     }, 400);
-    return () => clearTimeout(timer);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
   }, [groups]);
+
+  // On unmount (e.g. a soft navigation to another page), flush any pending
+  // debounced save so an edit made just before leaving isn't lost. Also flush
+  // when the tab is hidden as a best effort for hard unloads. flush() cancels
+  // the still-armed debounce timer so it can't fire a second, redundant save.
+  useEffect(() => {
+    function flush() {
+      if (!pendingSaveRef.current) return;
+      pendingSaveRef.current = false;
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      void saveFriendGroupsAction(latestGroupsRef.current);
+    }
+    function onHide() {
+      if (document.visibilityState === "hidden") flush();
+    }
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      flush();
+    };
+  }, []);
+
+  // Live friend ids, used to count only still-current members of a group.
+  const friendIdSet = useMemo(
+    () => new Set(friends.map((f) => f.id)),
+    [friends]
+  );
 
   const q = query.trim().toLowerCase();
   const shownFriends = useMemo(() => {
@@ -156,6 +199,11 @@ export function FriendGroupsManager({
             <ul className="space-y-2">
               {groups.map((group) => {
                 const isEditing = group.id === editingId;
+                // Count only ids that are still current friends, so a stale
+                // member left behind by an old build can't overstate the count.
+                const memberCount = group.userIds.filter((id) =>
+                  friendIdSet.has(id)
+                ).length;
                 return (
                   <li
                     key={group.id}
@@ -165,8 +213,8 @@ export function FriendGroupsManager({
                       <div className="min-w-0">
                         <div className="truncate text-sm">{group.name}</div>
                         <div className="text-xs text-white/50">
-                          {group.userIds.length}{" "}
-                          {group.userIds.length === 1 ? "friend" : "friends"}
+                          {memberCount}{" "}
+                          {memberCount === 1 ? "friend" : "friends"}
                         </div>
                       </div>
                       <div className="flex shrink-0 gap-2">
