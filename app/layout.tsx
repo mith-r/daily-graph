@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
 import { DEBUG_AUTH_ENABLED } from "@/lib/debug";
 import { AnalyticsTracker } from "@/components/AnalyticsTracker";
@@ -7,11 +7,6 @@ import { PushRegistrar } from "@/components/PushRegistrar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
@@ -35,7 +30,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      className={`${geistSans.variable} antialiased`}
     >
       <body className="min-h-[100dvh] flex flex-col">
         {/* Mark the native (Capacitor) shell synchronously, before first paint,

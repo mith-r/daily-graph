@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/dal";
 import { Nav } from "@/components/Nav";
+import { prettyDateLong } from "@/lib/date";
 import {
   getUserVote,
   listSuggestionsWithVotes,
@@ -10,16 +11,6 @@ import { SuggestForm } from "./SuggestForm";
 import type { VoteState } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-
-function prettyDate(key: string): string {
-  const d = new Date(key + "T00:00:00Z");
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  }).format(d);
-}
 
 export default async function VotePage() {
   const me = await requireUser();
@@ -37,7 +28,7 @@ export default async function VotePage() {
         <section>
           <h1 className="text-2xl font-semibold">Tomorrow&apos;s prompt</h1>
           <p className="mt-1 text-sm text-white/60">
-            {prettyDate(targetDate)} — top vote at midnight ET wins.
+            {prettyDateLong(targetDate)} — top vote at midnight ET wins.
           </p>
         </section>
 

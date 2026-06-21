@@ -46,7 +46,7 @@ export async function buildTodayResponse(
     // "who moved this friend" focus view. Restricted to my friends so a
     // stranger's nudge on my friend never leaks; my own nudge stays in myNudge.
     const nudgesOnFriends = await getNudgesOnMany(date, placedFriendIds);
-    const all_nudges = await getNudgesOn(date, me.id);
+    const allNudges = await getNudgesOn(date, me.id);
 
     // A banned user is locked out of placing NEW nudges, but nudges they left
     // before the ban aren't indexed by author and so survive. Drop them here too
@@ -54,7 +54,7 @@ export async function buildTodayResponse(
     const candidateNudgerIds = new Set<string>();
     for (const list of nudgesOnFriends.values())
       for (const n of list) candidateNudgerIds.add(n.nudgerUserId);
-    for (const n of all_nudges) candidateNudgerIds.add(n.nudgerUserId);
+    for (const n of allNudges) candidateNudgerIds.add(n.nudgerUserId);
     const bannedNudgers = await getBannedIds([...candidateNudgerIds]);
 
     others = friendPlacements.map((p) => {
@@ -74,7 +74,7 @@ export async function buildTodayResponse(
 
     // Only show nudges from current friends; ignore stale ones from removed
     // friends and any from since-banned users.
-    nudgesOnMe = all_nudges.filter(
+    nudgesOnMe = allNudges.filter(
       (n) => friendIds.has(n.nudgerUserId) && !bannedNudgers.has(n.nudgerUserId)
     );
   }

@@ -14,6 +14,7 @@ import { clampAvatarScale } from "@/lib/avatar";
 import {
   AvatarConfigSchema,
   AvatarScaleSchema,
+  firstIssueMessage,
   PhotoDataUrlSchema,
   UpdateDisplayNameSchema,
   UpdateUsernameSchema,
@@ -32,10 +33,7 @@ export async function updateDisplayNameAction(
     displayName: formData.get("displayName"),
   });
   if (!parsed.success) {
-    return {
-      error:
-        parsed.error.issues[0]?.message ?? "Invalid display name.",
-    };
+    return { error: firstIssueMessage(parsed.error, "Invalid display name.") };
   }
   const result = await updateDisplayName(me.id, parsed.data.displayName);
   if ("error" in result) return { error: result.error };
@@ -55,9 +53,7 @@ export async function updateUsernameAction(
     username: formData.get("username"),
   });
   if (!parsed.success) {
-    return {
-      error: parsed.error.issues[0]?.message ?? "Invalid username.",
-    };
+    return { error: firstIssueMessage(parsed.error, "Invalid username.") };
   }
   const result = await updateUsername(me.id, parsed.data.username);
   if ("error" in result) return { error: result.error };
@@ -85,7 +81,7 @@ export async function updateAvatarAction(
 
   const parsed = AvatarConfigSchema.safeParse(json);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid avatar." };
+    return { error: firstIssueMessage(parsed.error, "Invalid avatar.") };
   }
 
   const result = await updateAvatar(me.id, parsed.data);
@@ -106,7 +102,7 @@ export async function updatePhotoAction(
   const raw = formData.get("photo");
   const parsed = PhotoDataUrlSchema.safeParse(raw);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid image." };
+    return { error: firstIssueMessage(parsed.error, "Invalid image.") };
   }
   const result = await updatePhoto(me.id, parsed.data);
   if ("error" in result) return { error: result.error };
@@ -134,7 +130,7 @@ export async function setAvatarScaleAction(
   const me = await requireUser();
   const parsed = AvatarScaleSchema.safeParse({ scale });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid size." };
+    return { error: firstIssueMessage(parsed.error, "Invalid size.") };
   }
   const result = await updateAvatarScale(
     me.id,

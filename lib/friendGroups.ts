@@ -14,7 +14,7 @@ export type FriendGroup = {
 // Sentinel "group" meaning "no filter — show every placed friend". Not stored.
 export const ALL_FRIENDS_GROUP_ID = "__all_friends__";
 
-export function friendGroupStorageKey(userId: string) {
+function friendGroupStorageKey(userId: string) {
   return `daily-graph:friend-filter-groups:${userId}`;
 }
 
@@ -83,7 +83,7 @@ export function coerceFriendGroups(parsed: unknown): FriendGroup[] {
 }
 
 // Validate an untrusted localStorage string payload into FriendGroup[].
-export function parseFriendGroups(raw: string | null): FriendGroup[] {
+function parseFriendGroups(raw: string | null): FriendGroup[] {
   if (!raw) return [];
   try {
     return coerceFriendGroups(JSON.parse(raw));

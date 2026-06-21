@@ -124,13 +124,6 @@ export type FriendSummary = {
   email: string;
 };
 
-export type FriendsState = {
-  me: PublicUser;
-  friends: FriendSummary[];
-  incoming: FriendSummary[]; // requests others sent to me
-  outgoing: FriendSummary[]; // requests I sent
-};
-
 export type SessionPayload = {
   userId: string;
   expiresAt: number;

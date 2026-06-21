@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import { todayKey } from "@/lib/date";
-import { getVerifiedUser } from "@/lib/dal";
+import { requireVerified } from "@/lib/http";
 import { buildTodayResponse } from "@/lib/today";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const me = await getVerifiedUser();
-  if (!me) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const me = await requireVerified();
+  if (me instanceof NextResponse) return me;
 
   try {
     const body = await buildTodayResponse(me, todayKey());

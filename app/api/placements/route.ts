@@ -3,41 +3,34 @@ import { isAdminUser } from "@/lib/admin";
 import { recordPlacement } from "@/lib/analytics";
 import { createPlacement } from "@/lib/placements";
 import { todayKey } from "@/lib/date";
-import { getVerifiedUser } from "@/lib/dal";
+import { readJson, requireVerified, toFiniteNumber } from "@/lib/http";
 import { buildTodayResponse } from "@/lib/today";
 import type { Placement } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-// Require a genuine finite number. Number() coercion would otherwise turn
-// null/""/[]/false into 0 and true into 1 — all "valid" coords — silently
-// pinning a junk first placement (which is permanent for the day) at the
-// center/corner. Anything that isn't already a number is rejected → 400.
-function clamp(v: unknown): number | null {
-  if (typeof v !== "number" || !Number.isFinite(v)) return null;
-  return Math.max(-1, Math.min(1, v));
+// toFiniteNumber rejects coerced junk (null/""/[]/false→0, true→1) outright, so
+// a garbage coord 400s instead of silently pinning a permanent first placement
+// at the center/corner. Then clamp the genuine number into the unit square.
+function clampCoord(v: unknown): number | null {
+  const n = toFiniteNumber(v);
+  return n === null ? null : Math.max(-1, Math.min(1, n));
 }
 
 export async function POST(req: Request) {
-  const me = await getVerifiedUser();
-  if (!me) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const me = await requireVerified();
+  if (me instanceof NextResponse) return me;
 
-  let data: unknown;
-  try {
-    data = await req.json();
-  } catch {
-    return NextResponse.json({ error: "bad json" }, { status: 400 });
-  }
+  const data = await readJson(req);
+  if (data instanceof NextResponse) return data;
   // `null`/non-object bodies parse fine; guard before property access so they
   // 400 instead of throwing an uncaught TypeError (500).
   if (data === null || typeof data !== "object") {
     return NextResponse.json({ error: "bad json" }, { status: 400 });
   }
   const body = data as { x?: unknown; y?: unknown };
-  const x = clamp(body.x);
-  const y = clamp(body.y);
+  const x = clampCoord(body.x);
+  const y = clampCoord(body.y);
   if (x === null || y === null) {
     return NextResponse.json({ error: "invalid coords" }, { status: 400 });
   }

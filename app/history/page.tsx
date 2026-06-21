@@ -4,19 +4,10 @@ import { getAllPlacements, listUserDates } from "@/lib/placements";
 import { getTodaysPrompt } from "@/lib/prompts";
 import { getFriendIds } from "@/lib/users";
 import { Nav } from "@/components/Nav";
+import { prettyDateLong } from "@/lib/date";
 import { HistoryEntry } from "./HistoryEntry";
 
 export const dynamic = "force-dynamic";
-
-function prettyDate(key: string): string {
-  const d = new Date(key + "T00:00:00Z");
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  }).format(d);
-}
 
 export default async function HistoryPage() {
   const me = await requireUser();
@@ -38,7 +29,7 @@ export default async function HistoryPage() {
       );
       return {
         date,
-        pretty: prettyDate(date),
+        pretty: prettyDateLong(date),
         prompt,
         mine,
         others,
