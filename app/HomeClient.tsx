@@ -9,7 +9,7 @@ import { NudgeLines, type NudgeLine } from "@/components/NudgeLines";
 import { PromptHeader } from "@/components/PromptHeader";
 import { RegressionLine } from "@/components/RegressionLine";
 import { clampAvatarScale } from "@/lib/avatar";
-import { assignColors, colorFor } from "@/lib/graph";
+import { assignColors, clientToUnit, colorFor } from "@/lib/graph";
 import { hapticImpact, ImpactStyle } from "@/lib/haptics";
 import { principalAxisLine, type Point } from "@/lib/regression";
 import type { PlacementWithNudge, PublicUser, TodayResponse } from "@/lib/types";
@@ -189,10 +189,6 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    function clampUnit(v: number) {
-      return Math.max(-1, Math.min(1, v));
-    }
-
     function onMove(e: PointerEvent) {
       // Suppress any residual scroll/zoom the browser would otherwise do.
       if (e.cancelable) e.preventDefault();
@@ -200,11 +196,9 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
         (p) => p.userId === targetUserId
       );
       if (!target || !canvasRef.current) return;
-      const rect = canvasRef.current.getBoundingClientRect();
-      const px = (e.clientX - rect.left) / rect.width;
-      const py = (e.clientY - rect.top) / rect.height;
-      const x = clampUnit(px * 2 - 1);
-      const y = clampUnit(1 - py * 2);
+      const { x, y } = clientToUnit(canvasRef.current, e.clientX, e.clientY, {
+        clamp: true,
+      });
       setNudging({
         targetUserId,
         dx: x - target.x,
@@ -304,11 +298,9 @@ export function HomeClient({ me, initial, initialGroups }: Props) {
         (p) => p.userId === targetUserId
       );
       if (!target) return;
-      const rect = canvasRef.current.getBoundingClientRect();
-      const px = (clientX - rect.left) / rect.width;
-      const py = (clientY - rect.top) / rect.height;
-      const x = Math.max(-1, Math.min(1, px * 2 - 1));
-      const y = Math.max(-1, Math.min(1, 1 - py * 2));
+      const { x, y } = clientToUnit(canvasRef.current, clientX, clientY, {
+        clamp: true,
+      });
       setNudging({
         targetUserId,
         dx: x - target.x,

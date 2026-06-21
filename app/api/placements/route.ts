@@ -3,33 +3,26 @@ import { isAdminUser } from "@/lib/admin";
 import { recordPlacement } from "@/lib/analytics";
 import { getPlacement, setPlacement } from "@/lib/placements";
 import { todayKey } from "@/lib/date";
-import { getVerifiedUser } from "@/lib/dal";
+import { readJson, requireVerified, toFiniteNumber } from "@/lib/http";
 import { buildTodayResponse } from "@/lib/today";
 import type { Placement } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-function clamp(v: unknown): number | null {
-  const n = typeof v === "number" ? v : Number(v);
-  if (!Number.isFinite(n)) return null;
-  return Math.max(-1, Math.min(1, n));
+function clampCoord(v: unknown): number | null {
+  const n = toFiniteNumber(v);
+  return n === null ? null : Math.max(-1, Math.min(1, n));
 }
 
 export async function POST(req: Request) {
-  const me = await getVerifiedUser();
-  if (!me) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const me = await requireVerified();
+  if (me instanceof NextResponse) return me;
 
-  let data: unknown;
-  try {
-    data = await req.json();
-  } catch {
-    return NextResponse.json({ error: "bad json" }, { status: 400 });
-  }
+  const data = await readJson(req);
+  if (data instanceof NextResponse) return data;
   const body = data as { x?: unknown; y?: unknown };
-  const x = clamp(body.x);
-  const y = clamp(body.y);
+  const x = clampCoord(body.x);
+  const y = clampCoord(body.y);
   if (x === null || y === null) {
     return NextResponse.json({ error: "invalid coords" }, { status: 400 });
   }
@@ -46,7 +39,7 @@ export async function POST(req: Request) {
         x,
         y,
         createdAt: Date.now(),
-    };
+      };
     if (!existing) {
       await setPlacement(date, placement);
       if (!isAdminUser(me)) {

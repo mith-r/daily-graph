@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getVerifiedUser } from "@/lib/dal";
+import { readJson, requireVerified } from "@/lib/http";
 import { addPushToken, removePushToken } from "@/lib/pushTokens";
 
 export const dynamic = "force-dynamic";
@@ -15,17 +15,11 @@ const TokenSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const me = await getVerifiedUser();
-  if (!me) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const me = await requireVerified();
+  if (me instanceof NextResponse) return me;
 
-  let data: unknown;
-  try {
-    data = await req.json();
-  } catch {
-    return NextResponse.json({ error: "bad json" }, { status: 400 });
-  }
+  const data = await readJson(req);
+  if (data instanceof NextResponse) return data;
 
   const parsed = TokenSchema.safeParse(data);
   if (!parsed.success) {
@@ -42,10 +36,8 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const me = await getVerifiedUser();
-  if (!me) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const me = await requireVerified();
+  if (me instanceof NextResponse) return me;
 
   const token = new URL(req.url).searchParams.get("token") ?? "";
   const parsed = TokenSchema.safeParse({ token });

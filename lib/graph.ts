@@ -7,6 +7,26 @@ export function toPct(v: number, invert = false): number {
   return invert ? 100 - pct : pct;
 }
 
+// Inverse of toPct for pointer input: map a client (screen) coordinate to graph
+// unit space (-1..1) relative to `el`. x grows left→right, y grows bottom→top
+// (screen top = +1). Pass clamp to constrain a drag that leaves the canvas to
+// the unit square.
+export function clientToUnit(
+  el: HTMLElement,
+  clientX: number,
+  clientY: number,
+  opts?: { clamp?: boolean }
+): { x: number; y: number } {
+  const rect = el.getBoundingClientRect();
+  let x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  let y = 1 - ((clientY - rect.top) / rect.height) * 2;
+  if (opts?.clamp) {
+    x = Math.max(-1, Math.min(1, x));
+    y = Math.max(-1, Math.min(1, y));
+  }
+  return { x, y };
+}
+
 // Curated palette of vibrant [hue, saturation, lightness] triples, hand-tuned
 // to stay distinct and pop on the navy background. Spans warm reds/oranges,
 // pinks/magentas, purples, blues, cyans/teals, and greens. Deliberately omits

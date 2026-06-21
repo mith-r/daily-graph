@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getVerifiedUser } from "@/lib/dal";
+import { requireVerified } from "@/lib/http";
 import { getUserPhoto } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +18,8 @@ export async function GET(req: Request) {
   // Same-origin <img> requests carry the session cookie automatically, so this
   // gate keeps photos from being scraped by anonymous callers without paying a
   // per-image friend check.
-  const me = await getVerifiedUser();
-  if (!me) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const me = await requireVerified();
+  if (me instanceof NextResponse) return me;
 
   const id = new URL(req.url).searchParams.get("id");
   if (!id) {

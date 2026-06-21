@@ -3,8 +3,6 @@ import { createHash, randomInt } from "node:crypto";
 import { getRedis } from "./redis";
 import { sendOtpEmail, type OtpPurpose } from "./email";
 
-export type { OtpPurpose };
-
 const CODE_TTL_MS = 10 * 60 * 1000; // codes live 10 minutes
 const RESEND_COOLDOWN_MS = 60 * 1000; // one send per minute
 const RATE_LIMIT_MAX = 5; // ...and at most 5 sends...

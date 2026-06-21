@@ -43,7 +43,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Exclude api (self-checks auth), Next internals, and any path with a
-    // file extension (public assets like /window.svg).
+    // file extension (public assets like /landing.html).
     "/((?!api|_next|.*\\.).*)",
   ],
 };

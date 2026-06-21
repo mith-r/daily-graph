@@ -46,9 +46,9 @@ export async function buildTodayResponse(
       };
     });
 
-    const all_nudges = await getNudgesOn(date, me.id);
+    const allNudges = await getNudgesOn(date, me.id);
     // Only show nudges from current friends; ignore stale ones from removed friends.
-    nudgesOnMe = all_nudges.filter((n) => friendIds.has(n.nudgerUserId));
+    nudgesOnMe = allNudges.filter((n) => friendIds.has(n.nudgerUserId));
   }
 
   // Join each placement to its owner's designed face and/or uploaded photo (if

@@ -1,5 +1,6 @@
 import "server-only";
 import { getRedis } from "./redis";
+import { dateKeyToUTC } from "./date";
 import type { Placement } from "./types";
 
 const DAY_TTL_SECONDS = 60 * 60 * 24 * 30;
@@ -57,17 +58,7 @@ export async function listUserDates(userId: string): Promise<string[]> {
 }
 
 function dayDiff(a: string, b: string): number {
-  const da = Date.UTC(
-    Number(a.slice(0, 4)),
-    Number(a.slice(5, 7)) - 1,
-    Number(a.slice(8, 10))
-  );
-  const db = Date.UTC(
-    Number(b.slice(0, 4)),
-    Number(b.slice(5, 7)) - 1,
-    Number(b.slice(8, 10))
-  );
-  return Math.round((da - db) / 86400000);
+  return Math.round((dateKeyToUTC(a) - dateKeyToUTC(b)) / 86400000);
 }
 
 export function computeStreak(dates: string[], today: string): number {
@@ -80,15 +71,6 @@ export function computeStreak(dates: string[], today: string): number {
     else break;
   }
   return streak;
-}
-
-export async function getFriendPlacements(
-  date: string,
-  friendIds: Set<string>
-): Promise<Placement[]> {
-  if (friendIds.size === 0) return [];
-  const all = await getAllPlacements(date);
-  return all.filter((p) => friendIds.has(p.userId));
 }
 
 const HEATMAP_COLS = 16;
@@ -118,9 +100,4 @@ export function buildHeatmap(placements: Placement[]) {
     total: placements.length,
     max,
   };
-}
-
-export async function getTodaysHeatmap(date: string) {
-  const all = await getAllPlacements(date);
-  return buildHeatmap(all);
 }

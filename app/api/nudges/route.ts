@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { todayKey } from "@/lib/date";
-import { getVerifiedUser } from "@/lib/dal";
+import { readJson, requireVerified, toFiniteNumber } from "@/lib/http";
 import { getFriendIds } from "@/lib/users";
 import { getPlacement } from "@/lib/placements";
 import { removeNudge, setNudge } from "@/lib/nudges";
@@ -8,23 +8,12 @@ import { buildTodayResponse } from "@/lib/today";
 
 export const dynamic = "force-dynamic";
 
-function parseFiniteNumber(v: unknown): number | null {
-  const n = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
 export async function POST(req: Request) {
-  const me = await getVerifiedUser();
-  if (!me) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const me = await requireVerified();
+  if (me instanceof NextResponse) return me;
 
-  let data: unknown;
-  try {
-    data = await req.json();
-  } catch {
-    return NextResponse.json({ error: "bad json" }, { status: 400 });
-  }
+  const data = await readJson(req);
+  if (data instanceof NextResponse) return data;
   const body = data as { targetUserId?: unknown; dx?: unknown; dy?: unknown };
   if (typeof body.targetUserId !== "string" || !body.targetUserId) {
     return NextResponse.json({ error: "invalid target" }, { status: 400 });
@@ -32,8 +21,8 @@ export async function POST(req: Request) {
   if (body.targetUserId === me.id) {
     return NextResponse.json({ error: "cannot nudge self" }, { status: 400 });
   }
-  const dxRaw = parseFiniteNumber(body.dx);
-  const dyRaw = parseFiniteNumber(body.dy);
+  const dxRaw = toFiniteNumber(body.dx);
+  const dyRaw = toFiniteNumber(body.dy);
   if (dxRaw === null || dyRaw === null) {
     return NextResponse.json({ error: "invalid offset" }, { status: 400 });
   }
@@ -73,10 +62,8 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const me = await getVerifiedUser();
-  if (!me) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const me = await requireVerified();
+  if (me instanceof NextResponse) return me;
 
   const url = new URL(req.url);
   const targetUserId = url.searchParams.get("targetUserId");

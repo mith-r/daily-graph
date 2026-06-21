@@ -16,7 +16,7 @@ function getSecretKey(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-export async function encryptSession(payload: SessionPayload): Promise<string> {
+async function encryptSession(payload: SessionPayload): Promise<string> {
   return new SignJWT({ userId: payload.userId, expiresAt: payload.expiresAt })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()

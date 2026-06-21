@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getVerifiedUser } from "@/lib/dal";
 import { isAdminUser } from "@/lib/admin";
+import { readJson, toFiniteNumber } from "@/lib/http";
 import { recordAnalyticsPing, type AnalyticsEvent } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
@@ -9,28 +10,16 @@ function parseEvent(value: unknown): AnalyticsEvent | null {
   return value === "pageview" || value === "heartbeat" ? value : null;
 }
 
-function parseActiveMs(value: unknown): number {
-  const n = typeof value === "number" ? value : Number(value ?? 0);
-  return Number.isFinite(n) ? n : 0;
-}
-
 export async function POST(req: Request) {
+  // Unlike the other routes, an anonymous caller gets a quiet 200 (not a 401)
+  // and admins are dropped, so their own browsing doesn't inflate the metrics.
   const me = await getVerifiedUser();
-  if (!me) {
-    return NextResponse.json({ ok: true });
-  }
-  // Admins are excluded from analytics so their own browsing — including
-  // refreshing this dashboard — doesn't inflate the engagement metrics.
-  if (isAdminUser(me)) {
+  if (!me || isAdminUser(me)) {
     return NextResponse.json({ ok: true });
   }
 
-  let data: unknown;
-  try {
-    data = await req.json();
-  } catch {
-    return NextResponse.json({ error: "bad json" }, { status: 400 });
-  }
+  const data = await readJson(req);
+  if (data instanceof NextResponse) return data;
 
   const body = data as {
     event?: unknown;
@@ -47,7 +36,7 @@ export async function POST(req: Request) {
       userId: me.id,
       event,
       eventId: typeof body.eventId === "string" ? body.eventId : null,
-      activeMs: parseActiveMs(body.activeMs),
+      activeMs: toFiniteNumber(body.activeMs) ?? 0,
     });
     return NextResponse.json({ ok: true });
   } catch (err) {

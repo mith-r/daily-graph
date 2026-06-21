@@ -12,7 +12,7 @@ import {
   unbanUser,
 } from "@/lib/moderation";
 import { reportReasonLabel } from "@/lib/reportReasons";
-import { ReportSchema } from "@/lib/validation";
+import { firstIssueMessage, ReportSchema } from "@/lib/validation";
 
 export type ReportFormState = { error?: string; success?: boolean } | undefined;
 
@@ -30,7 +30,7 @@ export async function reportUserAction(
     context: formData.get("context") || undefined,
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid report." };
+    return { error: firstIssueMessage(parsed.error, "Invalid report.") };
   }
   if (parsed.data.reportedUserId === me.id) {
     return { error: "You can't report yourself." };
